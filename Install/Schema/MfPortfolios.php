@@ -22,27 +22,83 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
-                    'first_name',
+                    'name',
                     [
                         'type'          => Column::TYPE_VARCHAR,
-                        'size'          => 50,
+                        'size'          => 100,
                         'notNull'       => true,
                     ]
                 ),
                 new Column(
-                    'last_name',
+                    'description',
                     [
                         'type'          => Column::TYPE_VARCHAR,
-                        'size'          => 50,
+                        'size'          => 4096,
+                        'notNull'       => false,
+                    ]
+                ),
+                new Column(
+                    'account_id',
+                    [
+                        'type'          => Column::TYPE_INTEGER,
                         'notNull'       => true,
                     ]
-                )
+                ),
+                new Column(
+                    'user_id',
+                    [
+                        'type'          => Column::TYPE_INTEGER,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
+                    'equity_balance',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
+                    'invested_amount',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
+                    'total_value',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
+                    'profit_loss',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
+                    'strategy_ids',
+                    [
+                        'type'          => Column::TYPE_JSON,
+                        'notNull'       => false,
+                    ]
+                ),
+                new Column(
+                    'timeline',
+                    [
+                        'type'          => Column::TYPE_JSON,
+                        'notNull'       => false,
+                    ]
+                ),
             ],
             'indexes' => [
                 new Index(
                     'column_UNIQUE',
                     [
-                        'last_name'
+                        'name'
                     ],
                     'UNIQUE'
                 )
@@ -60,7 +116,9 @@ class MfPortfolios
             new Index(
                 'column_INDEX',
                 [
-                    'first_name'
+                    'name',
+                    'user_id',
+                    'account_id'
                 ],
                 'INDEX'
             )
