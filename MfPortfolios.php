@@ -3,6 +3,7 @@
 namespace Apps\Fintech\Packages\Mf\Portfolios;
 
 use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfolios;
+use Apps\Fintech\Packages\Mf\Transactions\MfTransactions;
 use System\Base\BasePackage;
 
 class MfPortfolios extends BasePackage
@@ -28,23 +29,22 @@ class MfPortfolios extends BasePackage
             if ($this->model->gettransactions()) {
                 $portfolio['transactions'] = $this->model->getsecurity()->toArray();
             }
-
-            return $portfolio;
         } else {
             if ($this->ffData) {
-                $this->ffData = $this->jsonData($this->ffData, true);
-
-                return $this->ffData;
+                $portfolio = $this->jsonData($this->ffData, true);
             }
         }
 
-        return null;
+        if ($portfolio) {
+            return $portfolio;
+        }
+
+        return false;
     }
 
     public function addPortfolio($data)
     {
         $data['account_id'] = $this->access->auth->account()['id'];
-        $data['equity_balance'] = 0.00;
         $data['invested_amount'] = 0.00;
         $data['total_value'] = 0.00;
         $data['profit_loss'] = 0.00;

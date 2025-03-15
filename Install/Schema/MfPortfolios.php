@@ -52,13 +52,6 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
-                    'equity_balance',
-                    [
-                        'type'          => Column::TYPE_FLOAT,
-                        'notNull'       => true,
-                    ]
-                ),
-                new Column(
                     'invested_amount',
                     [
                         'type'          => Column::TYPE_FLOAT,

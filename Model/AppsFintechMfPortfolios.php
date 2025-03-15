@@ -21,8 +21,6 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $strategy_ids;
 
-    public $equity_balance;
-
     public $invested_amount;
 
     public $total_value;
