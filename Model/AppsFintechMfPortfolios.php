@@ -25,7 +25,7 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $total_value;
 
-    public $profit_loss;
+    public $xirr;
 
     public $timeline;
 

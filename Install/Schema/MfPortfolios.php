@@ -66,10 +66,10 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
-                    'profit_loss',
+                    'xirr',
                     [
                         'type'          => Column::TYPE_FLOAT,
-                        'notNull'       => true,
+                        'notNull'       => false,
                     ]
                 ),
                 new Column(
