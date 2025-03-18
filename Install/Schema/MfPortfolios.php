@@ -59,6 +59,20 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
+                    'remaining_invested_amount',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
+                    'profit_loss',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
                     'total_value',
                     [
                         'type'          => Column::TYPE_FLOAT,

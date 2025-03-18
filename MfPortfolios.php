@@ -52,8 +52,9 @@ class MfPortfolios extends BasePackage
 
         $data['account_id'] = $this->access->auth->account()['id'];
         $data['invested_amount'] = 0.00;
-        $data['total_value'] = 0.00;
+        $data['remaining_invested_amount'] = 0.00;
         $data['profit_loss'] = 0.00;
+        $data['total_value'] = 0.00;
 
         if ($this->add($data)) {
             $this->addResponse('User Added');
