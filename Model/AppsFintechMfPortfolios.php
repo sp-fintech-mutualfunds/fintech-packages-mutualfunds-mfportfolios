@@ -23,6 +23,10 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $invested_amount;
 
+    public $remaining_invested_amount;
+
+    public $profit_loss;
+
     public $total_value;
 
     public $xirr;

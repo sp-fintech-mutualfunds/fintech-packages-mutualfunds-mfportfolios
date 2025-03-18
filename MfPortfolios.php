@@ -44,10 +44,17 @@ class MfPortfolios extends BasePackage
 
     public function addPortfolio($data)
     {
+        if ($data['user_id'] == 0) {
+            $this->addResponse('User not set', 1);
+
+            return;
+        }
+
         $data['account_id'] = $this->access->auth->account()['id'];
         $data['invested_amount'] = 0.00;
-        $data['total_value'] = 0.00;
+        $data['remaining_invested_amount'] = 0.00;
         $data['profit_loss'] = 0.00;
+        $data['total_value'] = 0.00;
 
         if ($this->add($data)) {
             $this->addResponse('User Added');
@@ -73,15 +80,15 @@ class MfPortfolios extends BasePackage
         $this->addResponse('Error', 1);
     }
 
-    public function removeMfPortfolios($data)
+    public function removePortfolio($data)
     {
-        $mfportfolios = $this->getById($id);
+        $mfportfolios = $this->getById($data['id']);
 
         if ($mfportfolios) {
-            //
-            $this->addResponse('Success');
-
-            return;
+            if ($this->remove($mfportfolios['id'])) {
+                $this->addResponse('Success');
+                return;
+            }
         }
 
         $this->addResponse('Error', 1);
