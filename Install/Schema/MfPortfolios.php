@@ -59,13 +59,6 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
-                    'remaining_invested_amount',
-                    [
-                        'type'          => Column::TYPE_FLOAT,
-                        'notNull'       => true,
-                    ]
-                ),
-                new Column(
                     'profit_loss',
                     [
                         'type'          => Column::TYPE_FLOAT,
@@ -97,6 +90,13 @@ class MfPortfolios
                     'timeline',
                     [
                         'type'          => Column::TYPE_JSON,
+                        'notNull'       => false,
+                    ]
+                ),
+                new Column(
+                    'recalculate_timeline',
+                    [
+                        'type'          => Column::TYPE_BOOLEAN,
                         'notNull'       => false,
                     ]
                 ),
