@@ -23,8 +23,6 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $invested_amount;
 
-    public $remaining_invested_amount;
-
     public $profit_loss;
 
     public $total_value;
@@ -32,6 +30,8 @@ class AppsFintechMfPortfolios extends BaseModel
     public $xirr;
 
     public $timeline;
+
+    public $recalculate_timeline;
 
     public function initialize()
     {
