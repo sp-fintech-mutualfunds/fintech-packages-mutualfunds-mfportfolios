@@ -32,20 +32,30 @@ class MfPortfolios extends BasePackage
         } else {
             if ($this->ffData) {
                 $portfolio = $this->jsonData($this->ffData, true);
-
-                if ($portfolio['investments'] && count($portfolio['investments']) > 0) {
-                    $investments = $portfolio['investments'];
-
-                    $portfolio['investments'] = [];
-
-                    foreach ($investments as $investment) {
-                        $portfolio['investments'][$investment['amfi_code']] = $investment;
-                    }
-                }
             }
         }
 
         if ($portfolio) {
+            if ($portfolio['transactions'] && count($portfolio['transactions']) > 0) {
+                $transactions = $portfolio['transactions'];
+
+                $portfolio['transactions'] = [];
+
+                foreach ($transactions as $transaction) {
+                    $portfolio['transactions'][$transaction['id']] = $transaction;
+                }
+            }
+
+            if ($portfolio['investments'] && count($portfolio['investments']) > 0) {
+                $investments = $portfolio['investments'];
+
+                $portfolio['investments'] = [];
+
+                foreach ($investments as $investment) {
+                    $portfolio['investments'][$investment['amfi_code']] = $investment;
+                }
+            }
+
             return $portfolio;
         }
 
@@ -62,7 +72,8 @@ class MfPortfolios extends BasePackage
 
         $data['account_id'] = $this->access->auth->account()['id'];
         $data['invested_amount'] = 0.00;
-        $data['remaining_invested_amount'] = 0.00;
+        $data['return_amount'] = 0.00;
+        $data['sold_amount'] = 0.00;
         $data['profit_loss'] = 0.00;
         $data['total_value'] = 0.00;
         $data['status'] = 'neutral';

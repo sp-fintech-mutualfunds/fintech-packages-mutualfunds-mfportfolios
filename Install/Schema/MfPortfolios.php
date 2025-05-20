@@ -59,6 +59,20 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
+                    'return_amount',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
+                    'sold_amount',
+                    [
+                        'type'          => Column::TYPE_FLOAT,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
                     'profit_loss',
                     [
                         'type'          => Column::TYPE_FLOAT,
