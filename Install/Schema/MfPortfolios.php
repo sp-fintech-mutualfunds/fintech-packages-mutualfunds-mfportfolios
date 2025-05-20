@@ -87,6 +87,21 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
+                    'allocation',
+                    [
+                        'type'          => Column::TYPE_JSON,
+                        'notNull'       => false,
+                    ]
+                ),
+                new Column(
+                    'status',
+                    [
+                        'type'          => Column::TYPE_VARCHAR,
+                        'size'          => 10,
+                        'notNull'       => true,
+                    ]
+                ),
+                new Column(
                     'timeline',
                     [
                         'type'          => Column::TYPE_JSON,

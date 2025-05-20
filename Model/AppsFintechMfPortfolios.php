@@ -2,6 +2,7 @@
 
 namespace Apps\Fintech\Packages\Mf\Portfolios\Model;
 
+use Apps\Fintech\Packages\Mf\Investments\Model\AppsFintechMfInvestments;
 use Apps\Fintech\Packages\Mf\Transactions\Model\AppsFintechMfTransactions;
 use System\Base\BaseModel;
 
@@ -19,8 +20,6 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $user_id;
 
-    public $strategy_ids;
-
     public $invested_amount;
 
     public $profit_loss;
@@ -29,12 +28,27 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $xirr;
 
+    public $strategy_ids;
+
+    public $allocation;
+
+    public $status;
+
     public $timeline;
 
     public $recalculate_timeline;
 
     public function initialize()
     {
+        $this->modelRelations['investments']['relationObj'] = $this->hasMany(
+            'id',
+            AppsFintechMfInvestments::class,
+            'portfolio_id',
+            [
+                'alias'         => 'investments'
+            ]
+        );
+
         $this->modelRelations['transactions']['relationObj'] = $this->hasMany(
             'id',
             AppsFintechMfTransactions::class,

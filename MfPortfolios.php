@@ -32,6 +32,16 @@ class MfPortfolios extends BasePackage
         } else {
             if ($this->ffData) {
                 $portfolio = $this->jsonData($this->ffData, true);
+
+                if ($portfolio['investments'] && count($portfolio['investments']) > 0) {
+                    $investments = $portfolio['investments'];
+
+                    $portfolio['investments'] = [];
+
+                    foreach ($investments as $investment) {
+                        $portfolio['investments'][$investment['amfi_code']] = $investment;
+                    }
+                }
             }
         }
 
@@ -55,6 +65,7 @@ class MfPortfolios extends BasePackage
         $data['remaining_invested_amount'] = 0.00;
         $data['profit_loss'] = 0.00;
         $data['total_value'] = 0.00;
+        $data['status'] = 'neutral';
 
         if ($this->add($data)) {
             $this->addResponse('User Added');
