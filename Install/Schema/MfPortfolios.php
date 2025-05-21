@@ -114,21 +114,7 @@ class MfPortfolios
                         'size'          => 10,
                         'notNull'       => true,
                     ]
-                ),
-                new Column(
-                    'timeline',
-                    [
-                        'type'          => Column::TYPE_JSON,
-                        'notNull'       => false,
-                    ]
-                ),
-                new Column(
-                    'recalculate_timeline',
-                    [
-                        'type'          => Column::TYPE_BOOLEAN,
-                        'notNull'       => false,
-                    ]
-                ),
+                )
             ],
             'indexes' => [
                 new Index(

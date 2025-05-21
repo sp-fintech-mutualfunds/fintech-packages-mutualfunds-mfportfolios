@@ -3,6 +3,7 @@
 namespace Apps\Fintech\Packages\Mf\Portfolios\Model;
 
 use Apps\Fintech\Packages\Mf\Investments\Model\AppsFintechMfInvestments;
+use Apps\Fintech\Packages\Mf\Portfoliostimeline\Model\AppsFintechMfPortfoliostimeline;
 use Apps\Fintech\Packages\Mf\Transactions\Model\AppsFintechMfTransactions;
 use System\Base\BaseModel;
 
@@ -38,10 +39,6 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $status;
 
-    public $timeline;
-
-    public $recalculate_timeline;
-
     public function initialize()
     {
         $this->modelRelations['investments']['relationObj'] = $this->hasMany(
@@ -59,6 +56,15 @@ class AppsFintechMfPortfolios extends BaseModel
             'portfolio_id',
             [
                 'alias'         => 'transactions'
+            ]
+        );
+
+        $this->modelRelations['timeline']['relationObj'] = $this->hasMany(
+            'id',
+            AppsFintechMfPortfoliostimeline::class,
+            'portfolio_id',
+            [
+                'alias'         => 'timeline'
             ]
         );
 
