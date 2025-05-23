@@ -529,6 +529,14 @@ class MfPortfolios extends BasePackage
 
     protected function processInvestmentNumbers($timelineDate = null)
     {
+        if ($timelineDate) {
+            foreach ($this->portfolio['investments'] as $investmentAmficode => $portfolioInvestmentArr) {
+                if (!isset($this->investments[$investmentAmficode])) {
+                    unset($this->portfolio['investments'][$investmentAmficode]);
+                }
+            }
+        }
+
         if (count($this->investments) > 0) {
             // trace([$this->investments]);
             $categoriesPackage = $this->usepackage(MfCategories::class);
