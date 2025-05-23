@@ -39,6 +39,8 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $status;
 
+    public $start_date;
+
     public function initialize()
     {
         $this->modelRelations['investments']['relationObj'] = $this->hasMany(
