@@ -132,6 +132,7 @@ class MfPortfolios extends BasePackage
 
             $portfoliotimeline['portfolio_id'] = $this->packagesData->last['id'];
             $portfoliotimeline['snapshots'] = $this->helper->encode([]);
+            $portfoliotimeline['performance_chunks'] = $this->helper->encode([]);
 
             $portfoliotimelinePackage->add($portfoliotimeline);
 
@@ -292,31 +293,8 @@ class MfPortfolios extends BasePackage
 
             $this->processInvestmentNumbers($timelineDate);
 
-            // trace([$this->portfolio]);
             if ($timelineDate) {
-                $timelinePackage = $this->usePackage(MfPortfoliostimeline::class);
-
-                $timeline = $timelinePackage->getPortfoliotimelineByPortfolio($this->portfolio);
-
-                if ($timeline) {
-                    if (isset($timeline['snapshots']) && is_string($timeline['snapshots'])) {
-                        $timeline['snapshots'] = $this->helper->decode($timeline['snapshots']);
-                    }
-                    // trace([$this->portfolio]);
-                    $timeline['snapshots'][$timelineDate] = $this->portfolio;
-
-                    $timeline['snapshots'] = msort(array: $timeline['snapshots'], key: 'timelineDate', preserveKey: true);
-
-                    $timelinePackage->update($timeline);
-
-                    $this->addResponse('Recalculated/Generated timeline snapshot.', 0, ['portfolio' => $timeline['snapshots'][$timelineDate]]);
-
-                    return $timeline['snapshots'][$timelineDate];
-                }
-
-                $this->addResponse('Error: Could not generate timeline snapshot', 1);
-
-                return false;
+                return $this->portfolio;
             } else {
                 $this->update($this->portfolio);
 
