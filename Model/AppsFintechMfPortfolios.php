@@ -61,7 +61,7 @@ class AppsFintechMfPortfolios extends BaseModel
             ]
         );
 
-        $this->modelRelations['timeline']['relationObj'] = $this->hasMany(
+        $this->modelRelations['timeline']['relationObj'] = $this->hasOne(
             'id',
             AppsFintechMfPortfoliostimeline::class,
             'portfolio_id',

@@ -22,6 +22,8 @@ class MfPortfolios extends BasePackage
 
     protected $today;
 
+    protected $portfoliotimelinePackage;
+
     protected $transactionsPackage;
 
     protected $investmentsPackage;
@@ -40,6 +42,8 @@ class MfPortfolios extends BasePackage
     {
         $this->today = (\Carbon\Carbon::now(new \DateTimeZone('Asia/Kolkata')))->toDateString();
 
+        $this->portfoliotimelinePackage = $this->usePackage(MfPortfoliostimeline::class);
+
         $this->transactionsPackage = $this->usepackage(MfTransactions::class);
 
         $this->investmentsPackage = $this->usepackage(MfInvestments::class);
@@ -51,7 +55,7 @@ class MfPortfolios extends BasePackage
         return $this;
     }
 
-    public function getPortfolioById(int $id)
+    public function getPortfolioById(int $id, $getTimeline = false)
     {
         $this->ffStore = $this->ff->store($this->ffStoreToUse);
 
@@ -93,7 +97,7 @@ class MfPortfolios extends BasePackage
                 }
             }
 
-            if (isset($portfolio['timeline'])) {
+            if (isset($portfolio['timeline']) && !$getTimeline) {
                 unset($portfolio['timeline']);
             }
 
@@ -128,13 +132,11 @@ class MfPortfolios extends BasePackage
         $data['start_date'] = $this->today;
 
         if ($this->add($data)) {
-            $portfoliotimelinePackage = $this->usePackage(MfPortfoliostimeline::class);
-
             $portfoliotimeline['portfolio_id'] = $this->packagesData->last['id'];
             $portfoliotimeline['snapshots'] = $this->helper->encode([]);
             $portfoliotimeline['performance_chunks'] = $this->helper->encode([]);
 
-            $portfoliotimelinePackage->add($portfoliotimeline);
+            $this->portfoliotimelinePackage->add($portfoliotimeline);
 
             $this->addResponse('Portfolio Added');
         } else {
@@ -172,25 +174,29 @@ class MfPortfolios extends BasePackage
         $mfportfolios['name'] = $mfportfolios['name'] . '_clone_' . str_replace(' ', '_', (\Carbon\Carbon::now(new \DateTimeZone('Asia/Kolkata')))->toDateTimeString());
 
         unset($mfportfolios['id']);
-        // trace([$mfportfolios['transactions']]);
+
         if ($this->add($mfportfolios)) {
             $newPortfolioId = $this->packagesData->last['id'];
 
-            if ($mfportfolios['timeline']) {
+            if (isset($mfportfolios['timeline']['id'])) {
                 unset($mfportfolios['timeline']['id']);
-
-                $portfoliotimelinePackage = $this->usePackage(MfPortfoliostimeline::class);
-
-                $portfoliotimeline['portfolio_id'] = $newPortfolioId;
-
-                if (isset($mfportfolios['timeline']['snapshots'])) {
-                    $portfoliotimeline['snapshots'] = $mfportfolios['timeline']['snapshots'];
-                } else {
-                    $portfoliotimeline['snapshots'] = $this->helper->encode([]);
-                }
-
-                $portfoliotimelinePackage->add($portfoliotimeline);
             }
+
+            if (isset($mfportfolios['timeline']['snapshots'])) {
+                $portfoliotimeline['snapshots'] = $mfportfolios['timeline']['snapshots'];
+            } else {
+                $portfoliotimeline['snapshots'] = $this->helper->encode([]);
+            }
+
+            if (isset($mfportfolios['timeline']['performance_chunks'])) {
+                $portfoliotimeline['performance_chunks'] = $mfportfolios['timeline']['performance_chunks'];
+            } else {
+                $portfoliotimeline['performance_chunks'] = $this->helper->encode([]);
+            }
+
+            $portfoliotimeline['portfolio_id'] = $newPortfolioId;
+
+            $this->portfoliotimelinePackage->add($portfoliotimeline);
 
             if ($mfportfolios['transactions'] && count($mfportfolios['transactions']) > 0) {
                 foreach ($mfportfolios['transactions'] as $transaction) {
@@ -231,6 +237,8 @@ class MfPortfolios extends BasePackage
             $this->recalculatePortfolio(['portfolio_id' => $newPortfolioId]);
 
             $this->addResponse('Portfolio Added');
+
+            return $newPortfolioId;
         } else {
             $this->addResponse('Error Adding Portfolio', 1);
         }
@@ -238,28 +246,27 @@ class MfPortfolios extends BasePackage
 
     public function removePortfolio($data)
     {
-        $mfportfolios = $this->getPortfolioById($data['id']);
+        $mfportfolios = $this->getPortfolioById($data['id'], true);
 
         if ($mfportfolios) {
-            if ($this->remove($mfportfolios['id'])) {
-                //Remove Timeline
-                if (isset($mfportfolios['timeline']['id'])) {
-                    $portfoliotimelinePackage = $this->usePackage(MfPortfoliostimeline::class);
-                    $portfoliotimelinePackage->remove($mfportfolios['timeline']['id']);
+            //Remove Timeline
+            if (isset($mfportfolios['timeline']['id'])) {
+                $this->portfoliotimelinePackage->remove($mfportfolios['timeline']['id']);
+            }
+            //Remove Transactions
+            if (isset($mfportfolios['transactions']) && count($mfportfolios['transactions']) > 0) {
+                foreach ($mfportfolios['transactions'] as $transaction) {
+                    $this->transactionsPackage->remove($transaction['id']);
                 }
-                //Remove Transactions
-                if (isset($mfportfolios['transactions']) && count($mfportfolios['transactions']) > 0) {
-                    foreach ($mfportfolios['transactions'] as $transaction) {
-                        //
-                    }
+            }
+            //Remove Transactions
+            if (isset($mfportfolios['investments']) && count($mfportfolios['investments']) > 0) {
+                foreach ($mfportfolios['investments'] as $investment) {
+                    $this->investmentsPackage->remove($investment['id']);
                 }
-                //Remove Transactions
-                if (isset($mfportfolios['investments']) && count($mfportfolios['investments']) > 0) {
-                    foreach ($mfportfolios['investments'] as $transaction) {
-                        //
-                    }
-                }
+            }
 
+            if ($this->remove($mfportfolios['id'])) {
                 $this->addResponse('Success');
 
                 return;
@@ -289,7 +296,9 @@ class MfPortfolios extends BasePackage
         }
 
         if ($this->portfolio['transactions'] && count($this->portfolio['transactions']) > 0) {
-            $this->processTransactionsNumbers($data, $viaAddUpdate, $timelineDate);
+            $this->portfolio['transactions'] = msort(array: $this->portfolio['transactions'], key: 'date', preserveKey: true);
+
+            $this->processTransactionsNumbers($viaAddUpdate, $timelineDate);
 
             $this->processInvestmentNumbers($timelineDate);
 
@@ -333,11 +342,10 @@ class MfPortfolios extends BasePackage
                 return $returnArr;
             }
         }
-                    // trace([$this->portfolio]);
 
         if ($this->portfolio['investments'] && count($this->portfolio['investments']) > 0) {
             foreach ($this->portfolio['investments'] as $investment) {
-                $this->investmentsPackage->remove($investment['id'])    ;
+                $this->investmentsPackage->remove($investment['id']);
             }
         }
 
@@ -358,7 +366,7 @@ class MfPortfolios extends BasePackage
         return false;
     }
 
-    protected function processTransactionsNumbers($data, $viaAddUpdate = false, &$timelineDate = null)
+    protected function processTransactionsNumbers($viaAddUpdate = false, &$timelineDate = null)
     {
         foreach ($this->portfolio['transactions'] as $transactionId => &$transaction) {
             if ($timelineDate &&
@@ -374,6 +382,10 @@ class MfPortfolios extends BasePackage
             }
 
             if ($transaction['type'] === 'buy') {
+                if (\Carbon\Carbon::parse($this->portfolio['start_date'])->gt(\Carbon\Carbon::parse($transaction['date']))) {
+                    $this->portfolio['start_date'] = $transaction['date'];
+                }
+
                 $this->scheme = $this->schemesPackage->getSchemeFromAmfiCodeOrSchemeId($transaction);
 
                 if ($transaction['status'] === 'open') {
@@ -507,16 +519,19 @@ class MfPortfolios extends BasePackage
 
     protected function processInvestmentNumbers($timelineDate = null)
     {
-        if ($timelineDate) {
+        if ($this->portfolio['investments']) {
             foreach ($this->portfolio['investments'] as $investmentAmficode => $portfolioInvestmentArr) {
                 if (!isset($this->investments[$investmentAmficode])) {
-                    unset($this->portfolio['investments'][$investmentAmficode]);
+                    if ($timelineDate) {
+                        unset($this->portfolio['investments'][$investmentAmficode]);
+                    } else {
+                        $this->investmentsPackage->remove($this->portfolio['investments'][$investmentAmficode]['id']);
+                    }
                 }
             }
         }
 
         if (count($this->investments) > 0) {
-            // trace([$this->investments]);
             $categoriesPackage = $this->usepackage(MfCategories::class);
 
             $this->portfolio['invested_amount'] = 0;
@@ -529,7 +544,6 @@ class MfPortfolios extends BasePackage
             $this->portfolio['allocation']['by_subcategories'] = [];
 
             foreach ($this->investments as $amfiCode => &$investment) {
-                // var_dump($this->investments, $investment);
                 if (isset($this->portfolio['investments'][$amfiCode])) {
                     $portfolioInvestment = $this->portfolio['investments'][$amfiCode];
 
@@ -561,8 +575,11 @@ class MfPortfolios extends BasePackage
                 $portfolioInvestment['amfi_code'] = $amfiCode;
                 $this->portfolio['invested_amount'] += $investment['amount'];
                 $portfolioInvestment['amount'] = numberFormatPrecision($investment['amount'], 2);
-                $portfolioInvestment['units'] = $investment['units'];
-                $portfolioInvestment['latest_value'] = $this->investments[$amfiCode]['latest_value'] = numberFormatPrecision($investment['latest_nav'] * $investment['units'], 2);
+                $portfolioInvestment['units'] = numberFormatPrecision($investment['units'], 3);
+                $portfolioInvestment['latest_nav'] = numberFormatPrecision($investment['latest_nav'], 2);
+                $portfolioInvestment['latest_value'] =
+                    $this->investments[$amfiCode]['latest_value'] =
+                        numberFormatPrecision($portfolioInvestment['latest_nav'] * $portfolioInvestment['units'], 2);
                 $this->portfolio['return_amount'] += $portfolioInvestment['latest_value'];
                 $portfolioInvestment['latest_value_date'] = $investment['latest_nav_date'];
                 $portfolioInvestment['diff'] = numberFormatPrecision($portfolioInvestment['latest_value'] - $portfolioInvestment['amount'], 2);
