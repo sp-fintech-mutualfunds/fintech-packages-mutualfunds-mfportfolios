@@ -17,7 +17,7 @@ class Install extends BasePackage
     {
         $this->databases =
             [
-                'apps_fintech_accounts_users'  => [
+                'apps_fintech_mf_portfolios'  => [
                     'schema'        => new MfPortfolios,
                     'model'         => new AppsFintechMfPortfolios
                 ]

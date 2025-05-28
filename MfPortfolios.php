@@ -133,8 +133,9 @@ class MfPortfolios extends BasePackage
 
         if ($this->add($data)) {
             $portfoliotimeline['portfolio_id'] = $this->packagesData->last['id'];
-            $portfoliotimeline['snapshots'] = $this->helper->encode([]);
-            $portfoliotimeline['performance_chunks'] = $this->helper->encode([]);
+            $portfoliotimeline['snapshots_ids'] = $this->helper->encode([]);
+            $portfoliotimeline['performance_chunks_ids'] = $this->helper->encode([]);
+            $portfoliotimeline['mode'] = 'transactions';
 
             $this->portfoliotimelinePackage->add($portfoliotimeline);
 
@@ -182,17 +183,19 @@ class MfPortfolios extends BasePackage
                 unset($mfportfolios['timeline']['id']);
             }
 
-            if (isset($mfportfolios['timeline']['snapshots'])) {
-                $portfoliotimeline['snapshots'] = $mfportfolios['timeline']['snapshots'];
+            if (isset($mfportfolios['timeline']['snapshots_ids'])) {
+                $portfoliotimeline['snapshots_ids'] = $mfportfolios['timeline']['snapshots_ids'];
             } else {
-                $portfoliotimeline['snapshots'] = $this->helper->encode([]);
+                $portfoliotimeline['snapshots_ids'] = $this->helper->encode([]);
             }
 
-            if (isset($mfportfolios['timeline']['performance_chunks'])) {
-                $portfoliotimeline['performance_chunks'] = $mfportfolios['timeline']['performance_chunks'];
+            if (isset($mfportfolios['timeline']['performance_chunks_ids'])) {
+                $portfoliotimeline['performance_chunks_ids'] = $mfportfolios['timeline']['performance_chunks_ids'];
             } else {
-                $portfoliotimeline['performance_chunks'] = $this->helper->encode([]);
+                $portfoliotimeline['performance_chunks_ids'] = $this->helper->encode([]);
             }
+
+            $portfoliotimeline['mode'] = $mfportfolios['timeline']['mode'];
 
             $portfoliotimeline['portfolio_id'] = $newPortfolioId;
 
@@ -252,6 +255,11 @@ class MfPortfolios extends BasePackage
             //Remove Timeline
             if (isset($mfportfolios['timeline']['id'])) {
                 $this->portfoliotimelinePackage->remove($mfportfolios['timeline']['id']);
+
+                //Remove Timeline Opcache entry
+                if ($this->opCache->checkCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline')) {
+                    $this->opCache->removeCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline');
+                }
             }
             //Remove Transactions
             if (isset($mfportfolios['transactions']) && count($mfportfolios['transactions']) > 0) {
