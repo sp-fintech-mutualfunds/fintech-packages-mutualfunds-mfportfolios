@@ -172,7 +172,23 @@ class MfPortfolios extends BasePackage
     {
         $mfportfolios = $this->getPortfolioById($data['id'], true);
 
-        $mfportfolios['name'] = $mfportfolios['name'] . '_clone_' . str_replace(' ', '_', (\Carbon\Carbon::now(new \DateTimeZone('Asia/Kolkata')))->toDateTimeString());
+        if (isset($data['clone_portfolio_description'])) {
+            $mfportfolios['description'] = $data['clone_portfolio_description'];
+        } else {
+            $mfportfolios['description'] = $mfportfolios['description'] . ' NOTE: This portfolio is a clone of ' . $mfportfolios['name'];
+        }
+
+        if (isset($data['clone_portfolio_name'])) {
+            if (!checkCtype($data['clone_portfolio_name'], 'alnum', ['_', '-', ':'])) {
+                $this->addResponse('Name cannot have special chars other than dash, underscore or colon.', 1);
+
+                return false;
+            }
+
+            $mfportfolios['name'] = $data['clone_portfolio_name'];
+        } else {
+            $mfportfolios['name'] = $mfportfolios['name'] . '_clone_' . str_replace(' ', '_', (\Carbon\Carbon::now(new \DateTimeZone('Asia/Kolkata')))->toDateTimeString());
+        }
 
         unset($mfportfolios['id']);
 
@@ -237,7 +253,9 @@ class MfPortfolios extends BasePackage
                 }
             }
 
-            $this->recalculatePortfolio(['portfolio_id' => $newPortfolioId]);
+            if (!isset($data['strategy_id'])) {
+                $this->recalculatePortfolio(['portfolio_id' => $newPortfolioId]);
+            }
 
             $this->addResponse('Portfolio Added');
 
@@ -254,12 +272,34 @@ class MfPortfolios extends BasePackage
         if ($mfportfolios) {
             //Remove Timeline
             if (isset($mfportfolios['timeline']['id'])) {
+                if (isset($mfportfolios['timeline']['snapshots_ids']) &&
+                    count($mfportfolios['timeline']['snapshots_ids']) > 0
+                ) {
+                    $this->portfoliotimelinePackage->switchModel($this->portfoliotimelinePackage->snapshotsModel);
+
+                    foreach ($mfportfolios['timeline']['snapshots_ids'] as $snapshotId) {
+                        $this->portfoliotimelinePackage->remove($snapshotId);
+                    }
+                }
+
+                if (isset($mfportfolios['timeline']['performance_chunks_ids']) &&
+                    count($mfportfolios['timeline']['performance_chunks_ids']) > 0
+                ) {
+                    $this->portfoliotimelinePackage->switchModel($this->portfoliotimelinePackage->performanceChunksModel);
+
+                    foreach ($mfportfolios['timeline']['performance_chunks_ids'] as $performanceChunkId) {
+                        $this->portfoliotimelinePackage->remove($performanceChunkId);
+                    }
+                }
+
+                $this->portfoliotimelinePackage->switchModel();
+
                 $this->portfoliotimelinePackage->remove($mfportfolios['timeline']['id']);
 
                 //Remove Timeline Opcache entry
-                if ($this->opCache->checkCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline')) {
-                    $this->opCache->removeCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline');
-                }
+                // if ($this->opCache->checkCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline')) {
+                //     $this->opCache->removeCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline');
+                // }
             }
             //Remove Transactions
             if (isset($mfportfolios['transactions']) && count($mfportfolios['transactions']) > 0) {
@@ -284,11 +324,9 @@ class MfPortfolios extends BasePackage
         $this->addResponse('Error', 1);
     }
 
-    public function recalculatePortfolio($data, $viaAddUpdate = false, $timelineDate = null)
+    public function recalculatePortfolio($data, $force = false, $timeline = null)
     {
-        if (!$this->portfolio ||
-            ($this->portfolio && $viaAddUpdate)
-        ) {
+        if (!$this->portfolio || $force) {
             $this->portfolio = $this->getPortfolioById((int) $data['portfolio_id']);
         }
 
@@ -306,11 +344,11 @@ class MfPortfolios extends BasePackage
         if ($this->portfolio['transactions'] && count($this->portfolio['transactions']) > 0) {
             $this->portfolio['transactions'] = msort(array: $this->portfolio['transactions'], key: 'date', preserveKey: true);
 
-            $this->processTransactionsNumbers($viaAddUpdate, $timelineDate);
+            $this->processTransactionsNumbers($force, $timeline);
 
-            $this->processInvestmentNumbers($timelineDate);
-
-            if ($timelineDate) {
+            $this->processInvestmentNumbers($timeline);
+            // trace([$this->portfolio]);
+            if ($timeline) {
                 return $this->portfolio;
             } else {
                 $this->update($this->portfolio);
@@ -374,11 +412,12 @@ class MfPortfolios extends BasePackage
         return false;
     }
 
-    protected function processTransactionsNumbers($viaAddUpdate = false, &$timelineDate = null)
+    protected function processTransactionsNumbers($force = false, &$timeline = null)
     {
         foreach ($this->portfolio['transactions'] as $transactionId => &$transaction) {
-            if ($timelineDate &&
-                (\Carbon\Carbon::parse($transaction['date']))->gt(\Carbon\Carbon::parse($timelineDate))
+            if ($timeline &&
+                $timeline->timelineDateBeingProcessed &&
+                (\Carbon\Carbon::parse($transaction['date']))->gt(\Carbon\Carbon::parse($timeline->timelineDateBeingProcessed))
             ) {
                 unset($this->portfolio['transactions'][$transactionId]);
 
@@ -390,25 +429,38 @@ class MfPortfolios extends BasePackage
             }
 
             if ($transaction['type'] === 'buy') {
+                if (!isset($this->investments[$transaction['amfi_code']])) {
+                    $this->investments[$transaction['amfi_code']] = [];
+                    $this->investments[$transaction['amfi_code']]['start_date'] = $transaction['date'];
+                }
+
+                if (!isset($this->investments[$transaction['amfi_code']]['total_investment'])) {
+                    $this->investments[$transaction['amfi_code']]['total_investment'] = 0;
+
+                }
+                $this->investments[$transaction['amfi_code']]['total_investment'] =
+                    $this->investments[$transaction['amfi_code']]['total_investment'] + $transaction['amount'];
+
                 if (\Carbon\Carbon::parse($this->portfolio['start_date'])->gt(\Carbon\Carbon::parse($transaction['date']))) {
                     $this->portfolio['start_date'] = $transaction['date'];
                 }
 
                 $this->scheme = $this->schemesPackage->getSchemeFromAmfiCodeOrSchemeId($transaction);
 
+                if ($transaction['status'] === 'close' &&
+                    \Carbon\Carbon::parse($timeline->timelineDateBeingProcessed)->lte(\Carbon\Carbon::parse($transaction['date_closed']))
+                ) {
+                    $transaction['status'] = 'open';
+                }
+
                 if ($transaction['status'] === 'open') {
                     $this->investments[$transaction['amfi_code']]['amc_id'] = $this->scheme['amc_id'];
                     $this->investments[$transaction['amfi_code']]['scheme_id'] = $this->scheme['id'];
 
-                    if (!$viaAddUpdate) {
-                        $this->transactionsPackage->calculateTransactionUnitsAndValues($transaction, false, $timelineDate, null);
+                    if (!$force) {
+                        $this->transactionsPackage->calculateTransactionUnitsAndValues($transaction, false, $timeline, null);
                     }
 
-                    if (isset($this->investments[$transaction['amfi_code']]['units'])) {
-                        $this->investments[$transaction['amfi_code']]['units'] += $transaction['units_bought'] - $transaction['units_sold'];
-                    } else {
-                        $this->investments[$transaction['amfi_code']]['units'] = $transaction['units_bought'] - $transaction['units_sold'];
-                    }
                     if (!isset($this->investments[$transaction['amfi_code']]['latest_nav'])) {
                         $this->investments[$transaction['amfi_code']]['latest_nav'] = $this->helper->last($transaction['returns'])['nav'];
                     }
@@ -426,26 +478,39 @@ class MfPortfolios extends BasePackage
                         $transaction['diff'] = 0;
                         $transaction['xirr'] = 0;
                     } else {
-                        if ($transaction['units_sold'] > 0) {
-                            $transactionXirrDatesArr = [$this->helper->last($transaction['returns'])['date']];
-                            $transactionXirrAmountsArr = [(float) $transaction['latest_value']];
+                        $transactionXirrDatesArr = [];
+                        $transactionXirrAmountsArr = [];
 
-                            $soldAmount = 0;
-                            foreach ($transaction['transactions'] as $soldTransaction) {
-                                array_push($transactionXirrDatesArr, $soldTransaction['date']);
-                                array_push($transactionXirrAmountsArr, $soldTransaction['amount']);
-                                $soldAmount = $soldAmount + $soldTransaction['amount'];
-                            }
-
+                        if (isset($transaction['transactions']) && count($transaction['transactions']) > 0) {
                             array_push($transactionXirrDatesArr, $transaction['date']);
                             array_push($transactionXirrAmountsArr, -$transaction['amount']);
+
+                            $soldAmount = 0;
+                            $soldUnits = 0;
+                            foreach ($transaction['transactions'] as $soldTransaction) {
+                                if ($timeline &&
+                                    $timeline->timelineDateBeingProcessed &&
+                                    (\Carbon\Carbon::parse($soldTransaction['date']))->gt(\Carbon\Carbon::parse($timeline->timelineDateBeingProcessed))
+                                ) {
+                                    continue;
+                                }
+
+                                array_push($transactionXirrDatesArr, $soldTransaction['date']);
+                                array_push($transactionXirrAmountsArr, $soldTransaction['amount']);
+
+                                $soldAmount = numberFormatPrecision($soldAmount + $soldTransaction['amount'], 2);
+                                $soldUnits = $soldUnits + $soldTransaction['units'];
+                            }
+
+                            array_push($transactionXirrDatesArr, $this->helper->last($transaction['returns'])['date']);
+                            array_push($transactionXirrAmountsArr, (float) $transaction['latest_value']);
 
                             if ($transaction['available_amount'] < $soldAmount) {
                                 $transaction['available_amount'] = (float) numberFormatPrecision($transaction['amount'] - $soldAmount, 2);
 
-                                if ($transaction['available_amount'] < 0) {
-                                    $transaction['available_amount'] = (float) 0;
-                                }
+                                // if ($transaction['available_amount'] < 0) {
+                                //     $transaction['available_amount'] = abs($transaction['available_amount']);
+                                // }
                             } else {
                                 $transaction['available_amount'] = (float) numberFormatPrecision($transaction['amount'] - $soldAmount, 2);
                             }
@@ -457,23 +522,39 @@ class MfPortfolios extends BasePackage
                             }
 
                             $transaction['diff'] = $transaction['latest_value'] - $transaction['available_amount'];
-                            array_push($this->investments[$transaction['amfi_code']]['xirrDatesArr'], $transaction['date']);
-                            array_push($this->investments[$transaction['amfi_code']]['xirrAmountsArr'], (float) -$transaction['available_amount']);
+                            $this->investments[$transaction['amfi_code']]['xirrDatesArr'] =
+                                array_merge($this->investments[$transaction['amfi_code']]['xirrDatesArr'], $transactionXirrDatesArr);
+                            $this->investments[$transaction['amfi_code']]['xirrAmountsArr'] =
+                                array_merge($this->investments[$transaction['amfi_code']]['xirrAmountsArr'], $transactionXirrAmountsArr);
+                            // array_push($this->investments[$transaction['amfi_code']]['xirrDatesArr'], $transaction['date']);
+                            // if ($transaction['available_amount'] < 0) {
+                            //     array_push($this->investments[$transaction['amfi_code']]['xirrAmountsArr'], (float) -($transaction['amount'] + abs($transaction['available_amount'])));
+                            // } else {
+                            //     array_push($this->investments[$transaction['amfi_code']]['xirrAmountsArr'], (float) -$transaction['available_amount']);
+                            // }
 
                             if (isset($this->investments[$transaction['amfi_code']]['sold_amount'])) {
                                 $this->investments[$transaction['amfi_code']]['sold_amount'] += (float) $soldAmount;
                             } else {
                                 $this->investments[$transaction['amfi_code']]['sold_amount'] = (float) $soldAmount;
                             }
+
+                            if (isset($this->investments[$transaction['amfi_code']]['units'])) {
+                                $this->investments[$transaction['amfi_code']]['units'] += (float) $transaction['units_bought'] - $soldUnits;
+                            } else {
+                                $this->investments[$transaction['amfi_code']]['units'] = (float) $transaction['units_bought'] - $soldUnits;
+                            }
                         } else {
                             $diff = $this->helper->last($transaction['returns'])['total_return'] - $this->helper->first($transaction['returns'])['total_return'];
                             $transaction['diff'] = numberFormatPrecision((float) $diff, 2);
 
-                            $transactionXirrDatesArr = [$this->helper->last($transaction['returns'])['date'], $transaction['date']];
-                            $transactionXirrAmountsArr = [(float) $this->helper->last($transaction['returns'])['total_return'], (float) -$transaction['amount']];
+                            $this->investments[$transaction['amfi_code']]['xirrDatesArr'] =
+                                $transactionXirrDatesArr = [$this->helper->last($transaction['returns'])['date'], $transaction['date']];
+                            $this->investments[$transaction['amfi_code']]['xirrAmountsArr'] =
+                                $transactionXirrAmountsArr = [(float) $this->helper->last($transaction['returns'])['total_return'], (float) -$transaction['amount']];
 
-                            array_push($this->investments[$transaction['amfi_code']]['xirrDatesArr'], $transaction['date']);
-                            array_push($this->investments[$transaction['amfi_code']]['xirrAmountsArr'], (float) -$transaction['amount']);
+                            // array_push($this->investments[$transaction['amfi_code']]['xirrDatesArr'], $transaction['date']);
+                            // array_push($this->investments[$transaction['amfi_code']]['xirrAmountsArr'], (float) -$transaction['amount']);
                             $transaction['available_amount'] = $transaction['amount'];
                             $transaction['units_sold'] = 0;
 
@@ -489,8 +570,14 @@ class MfPortfolios extends BasePackage
                             } else {
                                 $this->investments[$transaction['amfi_code']]['sold_amount'] = 0;
                             }
-                        }
 
+                            if (isset($this->investments[$transaction['amfi_code']]['units'])) {
+                                $this->investments[$transaction['amfi_code']]['units'] += (float) $transaction['units_bought'] - $transaction['units_sold'];
+                            } else {
+                                $this->investments[$transaction['amfi_code']]['units'] = (float) $transaction['units_bought'] - $transaction['units_sold'];
+                            }
+                        }
+                        // trace([$transactionXirrAmountsArr, $transactionXirrDatesArr]);
                         $transaction['xirr'] =
                             numberFormatPrecision(
                                 (float) \PhpOffice\PhpSpreadsheet\Calculation\Financial\CashFlow\Variable\NonPeriodic::rate(
@@ -518,19 +605,19 @@ class MfPortfolios extends BasePackage
                     }
                 }
             }
-
-            if (!$timelineDate) {
+            // trace([$this->investments]);
+            if (!$timeline) {
                 $this->transactionsPackage->update($transaction);
             }
         }
     }
 
-    protected function processInvestmentNumbers($timelineDate = null)
+    protected function processInvestmentNumbers($timeline = null)
     {
         if ($this->portfolio['investments']) {
             foreach ($this->portfolio['investments'] as $investmentAmficode => $portfolioInvestmentArr) {
                 if (!isset($this->investments[$investmentAmficode])) {
-                    if ($timelineDate) {
+                    if ($timeline) {
                         unset($this->portfolio['investments'][$investmentAmficode]);
                     } else {
                         $this->investmentsPackage->remove($this->portfolio['investments'][$investmentAmficode]['id']);
@@ -572,6 +659,7 @@ class MfPortfolios extends BasePackage
                     }
                 }
 
+                $portfolioInvestment['start_date'] = $investment['start_date'];
                 $portfolioInvestment['sold_amount'] = $investment['sold_amount'];
                 $this->portfolio['sold_amount'] += $investment['sold_amount'];
                 $portfolioInvestment['status'] = 'open';
@@ -581,8 +669,9 @@ class MfPortfolios extends BasePackage
                 $portfolioInvestment['user_id'] = $this->portfolio['user_id'];
                 $portfolioInvestment['portfolio_id'] = $this->portfolio['id'];
                 $portfolioInvestment['amfi_code'] = $amfiCode;
-                $this->portfolio['invested_amount'] += $investment['amount'];
-                $portfolioInvestment['amount'] = numberFormatPrecision($investment['amount'], 2);
+                // $this->portfolio['invested_amount'] += $investment['amount'];
+                $this->portfolio['invested_amount'] += $investment['total_investment'];
+                $portfolioInvestment['amount'] = numberFormatPrecision($investment['total_investment'], 2);
                 $portfolioInvestment['units'] = numberFormatPrecision($investment['units'], 3);
                 $portfolioInvestment['latest_nav'] = numberFormatPrecision($investment['latest_nav'], 2);
                 $portfolioInvestment['latest_value'] =
@@ -592,9 +681,10 @@ class MfPortfolios extends BasePackage
                 $portfolioInvestment['latest_value_date'] = $investment['latest_nav_date'];
                 $portfolioInvestment['diff'] = numberFormatPrecision($portfolioInvestment['latest_value'] - $portfolioInvestment['amount'], 2);
 
-                array_push($investment['xirrDatesArr'], $investment['latest_nav_date']);
-                array_push($investment['xirrAmountsArr'], (float) $portfolioInvestment['latest_value']);
+                // array_push($investment['xirrDatesArr'], $investment['latest_nav_date']);
+                // array_push($investment['xirrAmountsArr'], (float) $portfolioInvestment['latest_value']);
 
+                // trace([$investment['xirrAmountsArr'], $investment['xirrDatesArr']]);
                 $portfolioInvestment['xirr'] =
                     numberFormatPrecision(
                         (float) \PhpOffice\PhpSpreadsheet\Calculation\Financial\CashFlow\Variable\NonPeriodic::rate(
@@ -606,7 +696,8 @@ class MfPortfolios extends BasePackage
                 $this->portfolioXirrDatesArr = array_merge($this->portfolioXirrDatesArr, $investment['xirrDatesArr']);
                 $this->portfolioXirrAmountsArr = array_merge($this->portfolioXirrAmountsArr, $investment['xirrAmountsArr']);
 
-                if ($timelineDate) {
+                if ($timeline) {
+                    // trace([$timeline->timelineDateBeingProcessed, $this->portfolio['transactions'], $this->investments, $portfolioInvestment]);
                     $this->portfolio['investments'][$amfiCode] =
                         array_replace($this->portfolio['investments'][$amfiCode], $portfolioInvestment);
 
@@ -621,7 +712,7 @@ class MfPortfolios extends BasePackage
                     $investment['id'] = $this->investmentsPackage->packagesData->last['id'];
                 }
             }
-
+            // trace([$this->portfolio]);
             //Running loop again to recalculate category percentage. We need to calculate the portfolio total in order to get percentage of categories.
             unset($investment);//Unset as we are using the same var $investment again.
             foreach ($this->investments as $investment) {
@@ -638,10 +729,14 @@ class MfPortfolios extends BasePackage
                 $schemeAllocation = &$this->portfolio['allocation']['by_schemes'][$scheme['id']];
                 $schemeAllocation['scheme_id'] = $scheme['id'];
                 $schemeAllocation['scheme_name'] = $scheme['name'];
-                $schemeAllocation['invested_amount'] = $investment['amount'];
-                $schemeAllocation['invested_percent'] = round(($investment['amount'] / $this->portfolio['invested_amount']) * 100, 2);
+                $schemeAllocation['invested_amount'] = $investment['total_investment'];
+                $schemeAllocation['invested_percent'] = round(($investment['total_investment'] / $this->portfolio['invested_amount']) * 100, 2);
                 $schemeAllocation['return_amount'] = $investment['latest_value'];
-                $schemeAllocation['return_percent'] = round(($investment['latest_value'] / $this->portfolio['return_amount']) * 100, 2);
+                if ($investment['latest_value'] == 0) {
+                    $schemeAllocation['return_percent'] = 0;
+                } else {
+                    $schemeAllocation['return_percent'] = round(($investment['latest_value'] / $this->portfolio['return_amount']) * 100, 2);
+                }
 
                 if (!isset($schemeAllocation['investments'])) {
                     $schemeAllocation['investments'] = [];
@@ -677,9 +772,9 @@ class MfPortfolios extends BasePackage
                     }
 
                     if (!isset($subCategory['invested_amount'])) {
-                        $subCategory['invested_amount'] = $investment['amount'];
+                        $subCategory['invested_amount'] = $investment['total_investment'];
                     } else {
-                        $subCategory['invested_amount'] += $investment['amount'];
+                        $subCategory['invested_amount'] += $investment['total_investment'];
                     }
 
                     $subCategory['invested_percent'] =
@@ -692,8 +787,12 @@ class MfPortfolios extends BasePackage
                             numberFormatPrecision($subCategory['return_amount'] + $investment['latest_value'], 2);
                     }
 
-                    $subCategory['return_percent'] =
-                        round(($subCategory['return_amount'] / $this->portfolio['return_amount']) * 100, 2);
+                    if ($subCategory['return_amount'] == 0) {
+                        $subCategory['return_percent'] = 0;
+                    } else {
+                        $subCategory['return_percent'] =
+                            round(($subCategory['return_amount'] / $this->portfolio['return_amount']) * 100, 2);
+                    }
 
                     if (!isset($subCategory['investments'])) {
                         $subCategory['investments'] = [];
@@ -703,9 +802,9 @@ class MfPortfolios extends BasePackage
                 }
 
                 if (!isset($parentCategory['invested_amount'])) {
-                    $parentCategory['invested_amount'] = $investment['amount'];
+                    $parentCategory['invested_amount'] = $investment['total_investment'];
                 } else {
-                    $parentCategory['invested_amount'] += $investment['amount'];
+                    $parentCategory['invested_amount'] += $investment['total_investment'];
                 }
 
                 $parentCategory['invested_percent'] =
@@ -718,8 +817,12 @@ class MfPortfolios extends BasePackage
                         numberFormatPrecision($parentCategory['return_amount'] + $investment['latest_value'], 2);
                 }
 
-                $parentCategory['return_percent'] =
-                    round(($parentCategory['return_amount'] / $this->portfolio['return_amount']) * 100, 2);
+                if ($parentCategory['return_amount'] == 0) {
+                    $parentCategory['return_percent'] = 0;
+                } else {
+                    $parentCategory['return_percent'] =
+                        round(($parentCategory['return_amount'] / $this->portfolio['return_amount']) * 100, 2);
+                }
 
                 if (!isset($parentCategory['investments'])) {
                     $parentCategory['investments'] = [];
@@ -731,7 +834,13 @@ class MfPortfolios extends BasePackage
 
         $this->portfolio['total_value'] = $this->portfolio['return_amount'] + $this->portfolio['sold_amount'];
 
-        $this->portfolio['profit_loss'] = numberFormatPrecision($this->portfolio['return_amount'] - $this->portfolio['invested_amount'], 2);
+        if ($this->portfolio['sold_amount'] > 0) {
+            $investedAmount = $this->portfolio['invested_amount'] + abs($this->portfolio['invested_amount'] - $this->portfolio['sold_amount']);
+        } else {
+            $investedAmount = $this->portfolio['invested_amount'];
+        }
+
+        $this->portfolio['profit_loss'] = numberFormatPrecision($this->portfolio['return_amount'] - $investedAmount, 2);
 
         if ($this->portfolio['profit_loss'] > 0) {
             $this->portfolio['status'] = 'positive';
@@ -741,6 +850,7 @@ class MfPortfolios extends BasePackage
             $this->portfolio['status'] = 'neutral';
         }
 
+        // trace([$this->portfolioXirrAmountsArr, $this->portfolioXirrDatesArr]);
         if (count($this->portfolioXirrDatesArr) > 0 &&
             count($this->portfolioXirrAmountsArr) > 0 &&
             (count($this->portfolioXirrDatesArr) == count($this->portfolioXirrAmountsArr))
@@ -756,8 +866,8 @@ class MfPortfolios extends BasePackage
             $this->portfolio['xirr'] = 0;
         }
 
-        if ($timelineDate) {
-            $this->portfolio['timelineDate'] = $timelineDate;
+        if ($timeline && $timeline->timelineDateBeingProcessed) {
+            $this->portfolio['timelineDate'] = $timeline->timelineDateBeingProcessed;
         }
     }
 }
