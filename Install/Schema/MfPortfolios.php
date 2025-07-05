@@ -122,6 +122,13 @@ class MfPortfolios
                         'size'          => 15,
                         'notNull'       => true,
                     ]
+                ),
+                new Column(
+                    'is_clone',
+                    [
+                        'type'          => Column::TYPE_BOOLEAN,
+                        'notNull'       => false,
+                    ]
                 )
             ],
             'indexes' => [

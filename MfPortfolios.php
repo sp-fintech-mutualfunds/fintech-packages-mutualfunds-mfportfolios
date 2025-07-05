@@ -2,6 +2,7 @@
 
 namespace Apps\Fintech\Packages\Mf\Portfolios;
 
+use Apps\Fintech\Packages\Accounts\Users\AccountsUsers;
 use Apps\Fintech\Packages\Mf\Categories\MfCategories;
 use Apps\Fintech\Packages\Mf\Investments\MfInvestments;
 use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfolios;
@@ -49,6 +50,8 @@ class MfPortfolios extends BasePackage
         $this->investmentsPackage = $this->usepackage(MfInvestments::class);
 
         $this->schemesPackage = $this->usepackage(MfSchemes::class);
+
+        // $this->usersPackage = $this->usepackage(AccountsUsers::class);
 
         parent::init();
 
@@ -130,6 +133,7 @@ class MfPortfolios extends BasePackage
         $data['xir'] = 0;
         $data['status'] = 'neutral';
         $data['start_date'] = $this->today;
+        $data['is_clone'] = false;
 
         if ($this->add($data)) {
             $portfoliotimeline['portfolio_id'] = $this->packagesData->last['id'];
@@ -172,6 +176,20 @@ class MfPortfolios extends BasePackage
     {
         $mfportfolios = $this->getPortfolioById($data['id'], true);
 
+        if (!$mfportfolios) {
+            $this->addResponse('Portfolio with ID : ' . $data['id'] . ' not found', 1);
+
+            return false;
+        }
+
+        // $portfolioUser = $this->usersPackage->getAccountsUserById($mfportfolios['user_id']);
+
+        // if ($mfportfolios['invested_amount'] > $portfolioUser['equity_balance']) {
+        //     $this->addResponse('Portfolio user does not have enough equity to clone this portfolio. Add balance to the user and try again.', 1);
+
+        //     return false;
+        // }
+
         if (isset($data['clone_portfolio_description'])) {
             $mfportfolios['description'] = $data['clone_portfolio_description'];
         } else {
@@ -191,6 +209,7 @@ class MfPortfolios extends BasePackage
         }
 
         unset($mfportfolios['id']);
+        $mfportfolios['is_clone'] = true;
 
         if ($this->add($mfportfolios)) {
             $newPortfolioId = $this->packagesData->last['id'];
@@ -257,11 +276,13 @@ class MfPortfolios extends BasePackage
                 $this->recalculatePortfolio(['portfolio_id' => $newPortfolioId]);
             }
 
-            $this->addResponse('Portfolio Added');
+            $this->addResponse('Portfolio ' . $mfportfolios['name'] . ' cloned successfully.');
 
             return $newPortfolioId;
         } else {
-            $this->addResponse('Error Adding Portfolio', 1);
+            $this->addResponse('Error cloning Portfolio', 1);
+
+            return false;
         }
     }
 
@@ -448,6 +469,7 @@ class MfPortfolios extends BasePackage
                 $this->scheme = $this->schemesPackage->getSchemeFromAmfiCodeOrSchemeId($transaction);
 
                 if ($transaction['status'] === 'close' &&
+                    $timeline &&
                     \Carbon\Carbon::parse($timeline->timelineDateBeingProcessed)->lte(\Carbon\Carbon::parse($transaction['date_closed']))
                 ) {
                     $transaction['status'] = 'open';
@@ -834,13 +856,14 @@ class MfPortfolios extends BasePackage
 
         $this->portfolio['total_value'] = $this->portfolio['return_amount'] + $this->portfolio['sold_amount'];
 
-        if ($this->portfolio['sold_amount'] > 0) {
-            $investedAmount = $this->portfolio['invested_amount'] + abs($this->portfolio['invested_amount'] - $this->portfolio['sold_amount']);
-        } else {
-            $investedAmount = $this->portfolio['invested_amount'];
-        }
+        // if ($this->portfolio['sold_amount'] > 0) {
+        //     $investedAmount = $this->portfolio['invested_amount'] + abs($this->portfolio['invested_amount'] - $this->portfolio['sold_amount']);
+        // } else {
+        //     $investedAmount = $this->portfolio['invested_amount'];
+        // }
 
-        $this->portfolio['profit_loss'] = numberFormatPrecision($this->portfolio['return_amount'] - $investedAmount, 2);
+        $this->portfolio['profit_loss'] =
+            numberFormatPrecision(($this->portfolio['return_amount'] + $this->portfolio['sold_amount']) - $this->portfolio['invested_amount'], 2);
 
         if ($this->portfolio['profit_loss'] > 0) {
             $this->portfolio['status'] = 'positive';
