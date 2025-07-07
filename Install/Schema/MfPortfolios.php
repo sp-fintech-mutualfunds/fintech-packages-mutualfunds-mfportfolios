@@ -129,7 +129,29 @@ class MfPortfolios
                         'type'          => Column::TYPE_BOOLEAN,
                         'notNull'       => false,
                     ]
-                )
+                ),
+                new Column(
+                    'investment_source',//virtual, balances, accounting
+                    [
+                        'type'          => Column::TYPE_VARCHAR,
+                        'size'          => 15,
+                        'notNull'       => false,
+                    ]
+                ),
+                new Column(
+                    'book_id',
+                    [
+                        'type'          => Column::TYPE_SMALLINTEGER,
+                        'notNull'       => false,
+                    ]
+                ),
+                new Column(
+                    'account_ids',
+                    [
+                        'type'          => Column::TYPE_JSON,
+                        'notNull'       => false,
+                    ]
+                ),
             ],
             'indexes' => [
                 new Index(
