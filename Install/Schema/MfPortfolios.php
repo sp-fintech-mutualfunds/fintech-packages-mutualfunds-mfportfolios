@@ -146,9 +146,16 @@ class MfPortfolios
                     ]
                 ),
                 new Column(
-                    'account_ids',
+                    'withdraw_bankaccount_id',
                     [
-                        'type'          => Column::TYPE_JSON,
+                        'type'          => Column::TYPE_SMALLINTEGER,
+                        'notNull'       => false,
+                    ]
+                ),
+                new Column(
+                    'deposit_bankaccount_id',
+                    [
+                        'type'          => Column::TYPE_SMALLINTEGER,
                         'notNull'       => false,
                     ]
                 ),

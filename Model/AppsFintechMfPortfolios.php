@@ -47,7 +47,9 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $book_id;
 
-    public $account_ids;
+    public $withdraw_bankaccount_id;
+
+    public $deposit_bankaccount_id;
 
     public function initialize()
     {

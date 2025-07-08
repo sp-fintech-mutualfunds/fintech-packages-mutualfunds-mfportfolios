@@ -182,14 +182,6 @@ class MfPortfolios extends BasePackage
             return false;
         }
 
-        // $portfolioUser = $this->usersPackage->getAccountsUserById($mfportfolios['user_id']);
-
-        // if ($mfportfolios['invested_amount'] > $portfolioUser['equity_balance']) {
-        //     $this->addResponse('Portfolio user does not have enough equity to clone this portfolio. Add balance to the user and try again.', 1);
-
-        //     return false;
-        // }
-
         if (isset($data['clone_portfolio_description'])) {
             $mfportfolios['description'] = $data['clone_portfolio_description'];
         } else {
@@ -210,6 +202,10 @@ class MfPortfolios extends BasePackage
 
         unset($mfportfolios['id']);
         $mfportfolios['is_clone'] = true;
+        $mfportfolios['investment_source'] = 'virtual';
+        $mfportfolios['book_id'] = null;
+        $mfportfolios['withdraw_bankaccount_id'] = null;
+        $mfportfolios['deposit_bankaccount_id'] = null;
 
         if ($this->add($mfportfolios)) {
             $newPortfolioId = $this->packagesData->last['id'];
