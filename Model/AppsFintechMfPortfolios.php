@@ -80,6 +80,15 @@ class AppsFintechMfPortfolios extends BaseModel
             ]
         );
 
+        $this->modelRelations['strategies']['relationObj'] = $this->hasMany(
+            'id',
+            AppsFintechMfPortfoliosStrategies::class,
+            'portfolio_id',
+            [
+                'alias'         => 'strategies'
+            ]
+        );
+
         parent::initialize();
     }
 

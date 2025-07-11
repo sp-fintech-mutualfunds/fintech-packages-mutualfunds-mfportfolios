@@ -3,7 +3,9 @@
 namespace Apps\Fintech\Packages\Mf\Portfolios\Install;
 
 use Apps\Fintech\Packages\Mf\Portfolios\Install\Schema\MfPortfolios;
+use Apps\Fintech\Packages\Mf\Portfolios\Install\Schema\MfPortfoliosStrategies;
 use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfolios;
+use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfoliosStrategies;
 use System\Base\BasePackage;
 use System\Base\Providers\ModulesServiceProvider\DbInstaller;
 
@@ -20,6 +22,10 @@ class Install extends BasePackage
                 'apps_fintech_mf_portfolios'  => [
                     'schema'        => new MfPortfolios,
                     'model'         => new AppsFintechMfPortfolios
+                ],
+                'apps_fintech_mf_portfolios_strategies'  => [
+                    'schema'        => new MfPortfoliosStrategies,
+                    'model'         => new AppsFintechMfPortfoliosStrategies
                 ]
             ];
 
