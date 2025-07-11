@@ -6,6 +6,7 @@ use Apps\Fintech\Packages\Accounts\Users\AccountsUsers;
 use Apps\Fintech\Packages\Mf\Categories\MfCategories;
 use Apps\Fintech\Packages\Mf\Investments\MfInvestments;
 use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfolios;
+use Apps\Fintech\Packages\Mf\Portfolios\NonPeriodic;
 use Apps\Fintech\Packages\Mf\Portfoliostimeline\MfPortfoliostimeline;
 use Apps\Fintech\Packages\Mf\Schemes\MfSchemes;
 use Apps\Fintech\Packages\Mf\Transactions\MfTransactions;
@@ -375,6 +376,7 @@ class MfPortfolios extends BasePackage
             if ($timeline) {
                 return $this->portfolio;
             } else {
+                $this->setFFValidation(false);
                 $this->update($this->portfolio);
 
                 $returnArr =
@@ -613,7 +615,7 @@ class MfPortfolios extends BasePackage
                         // trace([$transactionXirrAmountsArr, $transactionXirrDatesArr]);
                         $transaction['xirr'] =
                             numberFormatPrecision(
-                                (float) \PhpOffice\PhpSpreadsheet\Calculation\Financial\CashFlow\Variable\NonPeriodic::rate(
+                                (float) NonPeriodic::rate(
                                     array_values($transactionXirrAmountsArr),
                                     array_values($transactionXirrDatesArr)
                                 ) * 100, 2
@@ -688,6 +690,7 @@ class MfPortfolios extends BasePackage
                         $portfolioInvestment['sold_amount'] = $investment['sold_amount'];
                         $this->portfolio['sold_amount'] += $investment['sold_amount'];
 
+                        $this->investmentsPackage->setFFValidation(false);
                         $this->investmentsPackage->update($portfolioInvestment);
 
                         continue;
@@ -722,7 +725,7 @@ class MfPortfolios extends BasePackage
                 // trace([$investment['xirrAmountsArr'], $investment['xirrDatesArr']]);
                 $portfolioInvestment['xirr'] =
                     numberFormatPrecision(
-                        (float) \PhpOffice\PhpSpreadsheet\Calculation\Financial\CashFlow\Variable\NonPeriodic::rate(
+                        (float) NonPeriodic::rate(
                             array_values($investment['xirrAmountsArr']),
                             array_values($investment['xirrDatesArr'])
                         ) * 100, 2
@@ -739,6 +742,7 @@ class MfPortfolios extends BasePackage
                     $investment['id'] = $portfolioInvestment['id'];
                 } else {
                     if (array_key_exists('id', $portfolioInvestment)) {
+                        $this->investmentsPackage->setFFValidation(false);
                         $this->investmentsPackage->update($portfolioInvestment);
                     } else {
                         $this->investmentsPackage->add($portfolioInvestment);
@@ -900,7 +904,7 @@ class MfPortfolios extends BasePackage
         ) {
             $this->portfolio['xirr'] =
                 numberFormatPrecision(
-                    (float) \PhpOffice\PhpSpreadsheet\Calculation\Financial\CashFlow\Variable\NonPeriodic::rate(
+                    (float) NonPeriodic::rate(
                         array_values($this->portfolioXirrAmountsArr),
                         array_values($this->portfolioXirrDatesArr)
                     ) * 100, 2
