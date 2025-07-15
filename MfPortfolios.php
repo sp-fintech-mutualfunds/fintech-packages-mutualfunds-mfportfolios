@@ -440,6 +440,7 @@ class MfPortfolios extends BasePackage
 
     protected function processTransactionsNumbers($force = false, &$timeline = null)
     {
+        // trace([$this->portfolio['transactions']]);
         foreach ($this->portfolio['transactions'] as $transactionId => &$transaction) {
             if ($timeline &&
                 $timeline->timelineDateBeingProcessed &&
@@ -485,9 +486,13 @@ class MfPortfolios extends BasePackage
                     $transaction['status'] = 'open';
                 }
 
+                $this->investments[$transaction['amfi_code']]['amc_id'] = $this->scheme['amc_id'];
+                $this->investments[$transaction['amfi_code']]['scheme_id'] = $this->scheme['id'];
+
+                $this->investments[$transaction['amfi_code']]['open_transactions'] = false;
+
                 if ($transaction['status'] === 'open') {
-                    $this->investments[$transaction['amfi_code']]['amc_id'] = $this->scheme['amc_id'];
-                    $this->investments[$transaction['amfi_code']]['scheme_id'] = $this->scheme['id'];
+                    $this->investments[$transaction['amfi_code']]['open_transactions'] = true;
 
                     if (!$force) {
                         $this->transactionsPackage->calculateTransactionUnitsAndValues($transaction, false, $timeline, null, $this->schemes);
@@ -630,13 +635,19 @@ class MfPortfolios extends BasePackage
 
                     $soldAmount = 0;
                     foreach ($transaction['transactions'] as $soldTransaction) {
-                        $soldAmount = $soldAmount + $soldTransaction['amount'];
+                        $soldAmount = numberFormatPrecision((float) $soldAmount + $soldTransaction['amount'], 2);
                     }
 
                     if (isset($this->investments[$transaction['amfi_code']]['sold_amount'])) {
-                        $this->investments[$transaction['amfi_code']]['sold_amount'] += (float) $soldAmount;
+                        $this->investments[$transaction['amfi_code']]['sold_amount'] += $soldAmount;
                     } else {
-                        $this->investments[$transaction['amfi_code']]['sold_amount'] = (float) $soldAmount;
+                        $this->investments[$transaction['amfi_code']]['sold_amount'] = $soldAmount;
+                    }
+
+                    if (isset($this->investments[$transaction['amfi_code']]['units'])) {
+                        $this->investments[$transaction['amfi_code']]['units'] += (float) $transaction['units_bought'] - $transaction['units_sold'];
+                    } else {
+                        $this->investments[$transaction['amfi_code']]['units'] = (float) $transaction['units_bought'] - $transaction['units_sold'];
                     }
                 }
             }
@@ -659,6 +670,10 @@ class MfPortfolios extends BasePackage
                     } else {
                         $this->investmentsPackage->remove($this->portfolio['investments'][$investmentAmficode]['id']);
                     }
+                // } else {
+                //     if ($portfolioInvestmentArr['status'] === 'close') {
+                //         unset($this->investments[$investmentAmficode]);
+                //     }
                 }
             }
         }
@@ -674,16 +689,12 @@ class MfPortfolios extends BasePackage
             $this->portfolio['allocation']['by_schemes'] = [];
             $this->portfolio['allocation']['by_categories'] = [];
             $this->portfolio['allocation']['by_subcategories'] = [];
-
             foreach ($this->investments as $amfiCode => &$investment) {
                 if (isset($this->portfolio['investments'][$amfiCode])) {
                     $portfolioInvestment = $this->portfolio['investments'][$amfiCode];
-
-                    if (count($investment) == 1 && isset($investment['sold_amount'])) {
-                        if ($portfolioInvestment['status'] === 'open') {
-                            $portfolioInvestment['status'] = 'close';
-                        }
-
+                    // trace([$investment]);
+                    if (!$investment['open_transactions']) {
+                        $portfolioInvestment['status'] = 'close';
                         $portfolioInvestment['amount'] = 0;
                         $portfolioInvestment['units'] = 0;
                         $portfolioInvestment['latest_value'] = 0;
@@ -697,64 +708,78 @@ class MfPortfolios extends BasePackage
                     }
                 }
 
-                $portfolioInvestment['start_date'] = $investment['start_date'];
-                $portfolioInvestment['sold_amount'] = $investment['sold_amount'];
-                $this->portfolio['sold_amount'] += $investment['sold_amount'];
-                $portfolioInvestment['status'] = 'open';
-                $portfolioInvestment['amc_id'] = $investment['amc_id'];
-                $portfolioInvestment['scheme_id'] = $investment['scheme_id'];
-                $portfolioInvestment['account_id'] = $this->portfolio['account_id'];
-                $portfolioInvestment['user_id'] = $this->portfolio['user_id'];
-                $portfolioInvestment['portfolio_id'] = $this->portfolio['id'];
-                $portfolioInvestment['amfi_code'] = $amfiCode;
-                // $this->portfolio['invested_amount'] += $investment['amount'];
-                $this->portfolio['invested_amount'] += $investment['total_investment'];
-                $portfolioInvestment['amount'] = numberFormatPrecision($investment['total_investment'], 2);
-                $portfolioInvestment['units'] = numberFormatPrecision($investment['units'], 3);
-                $portfolioInvestment['latest_nav'] = numberFormatPrecision($investment['latest_nav'], 2);
-                $portfolioInvestment['latest_value'] =
-                    $this->investments[$amfiCode]['latest_value'] =
-                        numberFormatPrecision($portfolioInvestment['latest_nav'] * $portfolioInvestment['units'], 2);
-                $this->portfolio['return_amount'] += $portfolioInvestment['latest_value'];
-                $portfolioInvestment['latest_value_date'] = $investment['latest_nav_date'];
-                $portfolioInvestment['diff'] = numberFormatPrecision($portfolioInvestment['latest_value'] - $portfolioInvestment['amount'], 2);
+                if ($portfolioInvestment['status'] === 'open') {
+                    $portfolioInvestment['start_date'] = $investment['start_date'];
+                    $portfolioInvestment['sold_amount'] = $investment['sold_amount'];
+                    $this->portfolio['sold_amount'] += $investment['sold_amount'];
+                    $portfolioInvestment['status'] = 'open';
+                    $portfolioInvestment['amc_id'] = $investment['amc_id'];
+                    $portfolioInvestment['scheme_id'] = $investment['scheme_id'];
+                    $portfolioInvestment['account_id'] = $this->portfolio['account_id'];
+                    $portfolioInvestment['user_id'] = $this->portfolio['user_id'];
+                    $portfolioInvestment['portfolio_id'] = $this->portfolio['id'];
+                    $portfolioInvestment['amfi_code'] = $amfiCode;
+                    // $this->portfolio['invested_amount'] += $investment['amount'];
+                    $this->portfolio['invested_amount'] += $investment['total_investment'];
+                    $portfolioInvestment['amount'] = numberFormatPrecision($investment['total_investment'], 2);
+                    $portfolioInvestment['units'] = numberFormatPrecision($investment['units'], 3);
+                    $portfolioInvestment['latest_nav'] = numberFormatPrecision($investment['latest_nav'], 2);
+                    $portfolioInvestment['latest_value'] =
+                        $this->investments[$amfiCode]['latest_value'] =
+                            numberFormatPrecision($portfolioInvestment['latest_nav'] * $portfolioInvestment['units'], 2);
+                    $this->portfolio['return_amount'] += $portfolioInvestment['latest_value'];
+                    $portfolioInvestment['latest_value_date'] = $investment['latest_nav_date'];
 
-                // array_push($investment['xirrDatesArr'], $investment['latest_nav_date']);
-                // array_push($investment['xirrAmountsArr'], (float) $portfolioInvestment['latest_value']);
+                    $portfolioInvestment['diff'] =
+                        numberFormatPrecision(($portfolioInvestment['latest_value'] + $portfolioInvestment['sold_amount']) - $portfolioInvestment['amount'], 2);
 
-                // trace([$investment['xirrAmountsArr'], $investment['xirrDatesArr']]);
-                $portfolioInvestment['xirr'] =
-                    numberFormatPrecision(
-                        (float) NonPeriodic::rate(
-                            array_values($investment['xirrAmountsArr']),
-                            array_values($investment['xirrDatesArr'])
-                        ) * 100, 2
-                    );
+                    // array_push($investment['xirrDatesArr'], $investment['latest_nav_date']);
+                    // array_push($investment['xirrAmountsArr'], (float) $portfolioInvestment['latest_value']);
 
-                $this->portfolioXirrDatesArr = array_merge($this->portfolioXirrDatesArr, $investment['xirrDatesArr']);
-                $this->portfolioXirrAmountsArr = array_merge($this->portfolioXirrAmountsArr, $investment['xirrAmountsArr']);
+                    // trace([$investment['xirrAmountsArr'], $investment['xirrDatesArr']]);
+                    $portfolioInvestment['xirr'] =
+                        numberFormatPrecision(
+                            (float) NonPeriodic::rate(
+                                array_values($investment['xirrAmountsArr']),
+                                array_values($investment['xirrDatesArr'])
+                            ) * 100, 2
+                        );
 
-                if ($timeline) {
-                    // trace([$timeline->timelineDateBeingProcessed, $this->portfolio['transactions'], $this->investments, $portfolioInvestment]);
-                    $this->portfolio['investments'][$amfiCode] =
-                        array_replace($this->portfolio['investments'][$amfiCode], $portfolioInvestment);
+                    $this->portfolioXirrDatesArr = array_merge($this->portfolioXirrDatesArr, $investment['xirrDatesArr']);
+                    $this->portfolioXirrAmountsArr = array_merge($this->portfolioXirrAmountsArr, $investment['xirrAmountsArr']);
 
-                    $investment['id'] = $portfolioInvestment['id'];
-                } else {
-                    if (array_key_exists('id', $portfolioInvestment)) {
-                        $this->investmentsPackage->setFFValidation(false);
-                        $this->investmentsPackage->update($portfolioInvestment);
+                    if ($timeline) {
+                        // trace([$timeline->timelineDateBeingProcessed, $this->portfolio['transactions'], $this->investments, $portfolioInvestment]);
+                        $this->portfolio['investments'][$amfiCode] =
+                            array_replace($this->portfolio['investments'][$amfiCode], $portfolioInvestment);
+
+                        $investment['id'] = $portfolioInvestment['id'];
                     } else {
-                        $this->investmentsPackage->add($portfolioInvestment);
-                    }
+                        if (array_key_exists('id', $portfolioInvestment)) {
+                            $this->investmentsPackage->setFFValidation(false);
+                            $this->investmentsPackage->update($portfolioInvestment);
+                        } else {
+                            $this->investmentsPackage->add($portfolioInvestment);
+                        }
 
-                    $investment['id'] = $this->investmentsPackage->packagesData->last['id'];
+                        $investment['id'] = $this->investmentsPackage->packagesData->last['id'];
+                    }
+                } else {
+                    $this->portfolio['sold_amount'] += $investment['sold_amount'];
+                    $this->portfolio['invested_amount'] += $investment['total_investment'];
+                    $this->portfolio['return_amount'] += $portfolioInvestment['latest_value'];
                 }
             }
             // trace([$this->portfolio]);
             //Running loop again to recalculate category percentage. We need to calculate the portfolio total in order to get percentage of categories.
             unset($investment);//Unset as we are using the same var $investment again.
             foreach ($this->investments as $amfiCode => $investment) {
+                if (isset($this->portfolio['investments'][$amfiCode]) &&
+                    $this->portfolio['investments'][$amfiCode]['status'] === 'close'
+                ) {
+                    continue;
+                }
+
                 if (!isset($investment['scheme_id'])) {
                     continue;
                 }
@@ -776,6 +801,7 @@ class MfPortfolios extends BasePackage
                 $schemeAllocation['scheme_id'] = $scheme['id'];
                 $schemeAllocation['scheme_name'] = $scheme['name'];
                 $schemeAllocation['invested_amount'] = $investment['total_investment'];
+                // trace([$investment['total_investment'], $this->portfolio['invested_amount']]);
                 $schemeAllocation['invested_percent'] = round(($investment['total_investment'] / $this->portfolio['invested_amount']) * 100, 2);
                 $schemeAllocation['return_amount'] = $investment['latest_value'];
                 if ($investment['latest_value'] == 0) {
@@ -888,7 +914,7 @@ class MfPortfolios extends BasePackage
 
         $this->portfolio['profit_loss'] =
             numberFormatPrecision(($this->portfolio['return_amount'] + $this->portfolio['sold_amount']) - $this->portfolio['invested_amount'], 2);
-
+            // trace([$this->portfolio['profit_loss']]);
         if ($this->portfolio['profit_loss'] > 0) {
             $this->portfolio['status'] = 'positive';
         } else if ($this->portfolio['profit_loss'] < 0) {
