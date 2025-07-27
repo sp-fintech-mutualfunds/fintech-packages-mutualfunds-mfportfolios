@@ -16,7 +16,7 @@ class AppsFintechMfPortfoliosStrategies extends BaseModel
 
     public $strategy_id;
 
-    public $amfi_code;
+    public $scheme_id;
 
     public $date;
 

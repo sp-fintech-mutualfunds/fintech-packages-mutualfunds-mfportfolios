@@ -50,7 +50,7 @@ class MfPortfoliosStrategies
                     ]
                 ),
                 new Column(
-                    'amfi_code',
+                    'scheme_id',
                     [
                         'type'          => Column::TYPE_INTEGER,
                         'notNull'       => true,
