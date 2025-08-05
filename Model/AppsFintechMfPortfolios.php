@@ -89,6 +89,15 @@ class AppsFintechMfPortfolios extends BaseModel
             ]
         );
 
+        // $this->modelRelations['performances']['relationObj'] = $this->hasOne(
+        //     'id',
+        //     AppsFintechMfPortfoliosPerformances::class,
+        //     'portfolio_id',
+        //     [
+        //         'alias'         => 'performances'
+        //     ]
+        // );
+
         parent::initialize();
     }
 

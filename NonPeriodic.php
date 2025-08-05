@@ -39,6 +39,9 @@ class NonPeriodic
      */
     public static function rate(mixed $values, mixed $dates, mixed $guess = self::DEFAULT_GUESS): float|string
     {
+        self::$dates = [];
+        self::$dateValues = [];
+
         $rslt = self::xirrPart1($values, $dates);
         if ($rslt !== '') {
             return $rslt;
