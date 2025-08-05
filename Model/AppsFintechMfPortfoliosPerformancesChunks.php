@@ -4,7 +4,7 @@ namespace Apps\Fintech\Packages\Mf\Portfolios\Model;
 
 use System\Base\BaseModel;
 
-class AppsFintechMfPortfoliosPerformances extends BaseModel
+class AppsFintechMfPortfoliosPerformancesChunks extends BaseModel
 {
     public $id;
 

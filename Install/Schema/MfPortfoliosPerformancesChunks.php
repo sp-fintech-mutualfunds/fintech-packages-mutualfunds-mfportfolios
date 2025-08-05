@@ -4,7 +4,7 @@ namespace Apps\Fintech\Packages\Mf\Portfolios\Install\Schema;
 
 use Phalcon\Db\Column;
 
-class MfPortfoliosPerformances
+class MfPortfoliosPerformancesChunks
 {
     public function columns()
     {
@@ -31,9 +31,9 @@ class MfPortfoliosPerformances
                     'performances_chunks',
                     [
                         'type'          => Column::TYPE_JSON,
-                        'notNull'       => false,
+                        'notNull'       => true,
                     ]
-                )
+                ),
             ],
             'options' => [
                 'TABLE_COLLATION' => 'utf8mb4_general_ci'

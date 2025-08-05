@@ -3,10 +3,10 @@
 namespace Apps\Fintech\Packages\Mf\Portfolios\Install;
 
 use Apps\Fintech\Packages\Mf\Portfolios\Install\Schema\MfPortfolios;
-use Apps\Fintech\Packages\Mf\Portfolios\Install\Schema\MfPortfoliosPerformances;
+use Apps\Fintech\Packages\Mf\Portfolios\Install\Schema\MfPortfoliosPerformancesChunks;
 use Apps\Fintech\Packages\Mf\Portfolios\Install\Schema\MfPortfoliosStrategies;
 use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfolios;
-use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfoliosPerformances;
+use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfoliosPerformancesChunks;
 use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfoliosStrategies;
 use System\Base\BasePackage;
 use System\Base\Providers\ModulesServiceProvider\DbInstaller;
@@ -29,10 +29,10 @@ class Install extends BasePackage
                     'schema'        => new MfPortfoliosStrategies,
                     'model'         => new AppsFintechMfPortfoliosStrategies
                 ],
-                // 'apps_fintech_mf_portfolios_performances'  => [
-                //     'schema'        => new MfPortfoliosPerformances,
-                //     'model'         => new AppsFintechMfPortfoliosPerformances
-                // ]
+                'apps_fintech_mf_portfolios_performances_chunks'  => [
+                    'schema'        => new MfPortfoliosPerformancesChunks,
+                    'model'         => new AppsFintechMfPortfoliosPerformancesChunks
+                ]
             ];
 
         $this->dbInstaller = new DbInstaller;

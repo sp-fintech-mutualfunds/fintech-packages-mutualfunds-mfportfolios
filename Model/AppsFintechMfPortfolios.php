@@ -3,6 +3,7 @@
 namespace Apps\Fintech\Packages\Mf\Portfolios\Model;
 
 use Apps\Fintech\Packages\Mf\Investments\Model\AppsFintechMfInvestments;
+use Apps\Fintech\Packages\Mf\Portfolios\Model\AppsFintechMfPortfoliosPerformancesChunks;
 use Apps\Fintech\Packages\Mf\Portfoliostimeline\Model\AppsFintechMfPortfoliostimeline;
 use Apps\Fintech\Packages\Mf\Transactions\Model\AppsFintechMfTransactions;
 use System\Base\BaseModel;
@@ -89,14 +90,14 @@ class AppsFintechMfPortfolios extends BaseModel
             ]
         );
 
-        // $this->modelRelations['performances']['relationObj'] = $this->hasOne(
-        //     'id',
-        //     AppsFintechMfPortfoliosPerformances::class,
-        //     'portfolio_id',
-        //     [
-        //         'alias'         => 'performances'
-        //     ]
-        // );
+        $this->modelRelations['performances_chunks']['relationObj'] = $this->hasOne(
+            'id',
+            AppsFintechMfPortfoliosPerformancesChunks::class,
+            'portfolio_id',
+            [
+                'alias'         => 'performances_chunks'
+            ]
+        );
 
         parent::initialize();
     }
