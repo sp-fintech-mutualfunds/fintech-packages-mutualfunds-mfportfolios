@@ -618,7 +618,6 @@ class MfPortfolios extends BasePackage
 
                 if ($transaction['status'] === 'open') {
                     $this->investments[$transaction['scheme_id']]['open_transactions'] = true;
-
                     if (!$force) {
                         if (!$this->transactionsPackage->calculateTransactionUnitsAndValues($transaction, false, $timeline, null, $this->schemes)) {
                             $this->addResponse(
@@ -828,7 +827,7 @@ class MfPortfolios extends BasePackage
                 }
             }
         }
-        // trace([$this->investments, $this->portfolio]);
+        // trace([$this->investments]);
         if (count($this->investments) > 0) {
             $categoriesPackage = $this->usepackage(MfCategories::class);
 
@@ -1075,7 +1074,6 @@ class MfPortfolios extends BasePackage
             $this->portfolio['status'] = 'neutral';
         }
 
-        // trace([$this->portfolioXirrAmountsArr, $this->portfolioXirrDatesArr]);
         if (count($this->portfolioXirrDatesArr) > 0 &&
             count($this->portfolioXirrAmountsArr) > 0 &&
             (count($this->portfolioXirrDatesArr) == count($this->portfolioXirrAmountsArr))
@@ -1090,6 +1088,7 @@ class MfPortfolios extends BasePackage
         } else {
             $this->portfolio['xirr'] = 0;
         }
+        // trace([$this->portfolioXirrAmountsArr, $this->portfolioXirrDatesArr, $this->portfolio['xirr']]);
 
         if ($timeline && $timeline->timelineDateBeingProcessed) {
             $this->portfolio['timelineDate'] = $timeline->timelineDateBeingProcessed;
@@ -1111,6 +1110,141 @@ class MfPortfolios extends BasePackage
         if ($this->config->databasetype !== 'db') {
             $this->ffStore = null;
         }
+    }
+
+    public function getPortfolioPerformancesChunks($data)
+    {
+        $portfolio = $this->getPortfolioById((int) $data['portfolio_id'], false, false, false, false, true);
+
+        $responseData = [];
+        $responseData['chunks'] = [];
+
+        if (isset($data['chunk_size']) &&
+            isset($portfolio['performances_chunks']['performances_chunks'][$data['chunk_size']])
+        ) {
+            if ($data['chunk_size'] === 'all') {
+                $responseData['chunks'][$data['chunk_size']] = $portfolio['performances_chunks']['performances_chunks'];
+            } else {
+                $responseData['chunks'][$data['chunk_size']] = $portfolio['performances_chunks']['performances_chunks'][$data['chunk_size']];
+            }
+
+            $daysDiff = null;
+
+            if (isset($data['start_date']) && isset($data['end_date'])) {
+                if ($data['chunk_size'] === 'all') {
+                    $responseData['chunks'][$data['chunk_size']] = $portfolio['performances_chunks']['performances_chunks'][$data['chunk_size']];
+                }
+
+                // $daysDiff = 0;
+
+                $start = (\Carbon\Carbon::parse($data['start_date']));
+                $end = (\Carbon\Carbon::parse($data['end_date']));
+
+                $daysDiff = $start->diffInDays($end);
+
+                $datesKeys = array_keys($responseData['chunks'][$data['chunk_size']]);
+                $startDateKey = array_search($data['start_date'], $datesKeys);
+
+                $responseData['chunks'][$data['chunk_size']] = array_slice($responseData['chunks'][$data['chunk_size']], $startDateKey, $daysDiff);
+
+                if ($startDateKey !== 0) {
+                    $responseData['chunks'][$data['chunk_size']] = array_values($responseData['chunks'][$data['chunk_size']]);
+
+                    $recalculatedChunks = [];
+
+                    foreach ($responseData['chunks'][$data['chunk_size']] as $chunkKey => $chunk) {
+                        trace([$chunk]);
+                        if (!isset($recalculatedChunks[$chunk['date']])) {
+                            $recalculatedChunks[$chunk['date']]['nav'] = $chunk['nav'];
+                            $recalculatedChunks[$chunk['date']]['date'] = $chunk['date'];
+                            $recalculatedChunks[$chunk['date']]['timestamp'] = \Carbon\Carbon::parse($chunk['date'])->timestamp;
+
+                            if ($chunkKey !== 0) {
+                                $previousDay = $responseData['chunks'][$data['chunk_size']][$chunkKey - 1];
+
+                                $recalculatedChunks[$chunk['date']]['diff'] =
+                                    numberFormatPrecision($chunk['nav'] - $this->helper->first($responseData['chunks'][$data['chunk_size']])['nav'], 4);
+                                $recalculatedChunks[$chunk['date']]['diff_percent'] =
+                                    numberFormatPrecision(($chunk['nav'] * 100 / $this->helper->first($responseData['chunks'][$data['chunk_size']])['nav'] - 100), 2);
+
+                                $recalculatedChunks[$chunk['date']]['diff_since_inception'] =
+                                    numberFormatPrecision($chunk['nav'] - $this->helper->first($responseData['chunks'][$data['chunk_size']])['nav'], 4);
+                                $recalculatedChunks[$chunk['date']]['diff_percent_since_inception'] =
+                                    numberFormatPrecision(($chunk['nav'] * 100 / $this->helper->first($responseData['chunks'][$data['chunk_size']])['nav'] - 100), 2);
+                            } else {
+                                $recalculatedChunks[$chunk['date']]['diff'] = 0;
+                                $recalculatedChunks[$chunk['date']]['diff_percent'] = 0;
+
+                                $recalculatedChunks[$chunk['date']]['trajectory'] = '-';
+
+                                $recalculatedChunks[$chunk['date']]['diff_since_inception'] = 0;
+                                $recalculatedChunks[$chunk['date']]['diff_percent_since_inception'] = 0;
+                            }
+                        }
+                    }
+                    $responseData['chunks'][$data['chunk_size']] = $recalculatedChunks;
+                }
+            }
+
+            $this->addResponse('Ok', 0, $responseData);
+
+            return $responseData;
+        } else if ($data['range'] &&
+                   isset($portfolio['performances_chunks']['performances_chunks']['all'])
+        ) {
+            $data['chunk_size'] = 'range';
+
+            if (count($data['range']) < 2) {
+                $this->addResponse('Please provide correct range dates. Provide both, start and end date.', 1);
+
+                return false;
+            }
+
+            try {
+                $start = (\Carbon\Carbon::parse($data['range'][0]));
+                $end = (\Carbon\Carbon::parse($data['range'][1]));
+
+                if ($end->lt($start)) {
+                    $this->addResponse('Please provide correct range dates. End date is less than start date', 1);
+
+                    return false;
+                }
+
+                $daysDiff = $start->diffInDays($end);
+
+                if (!isset($portfolio['performances_chunks']['performances_chunks']['all'][$data['range'][0]]) ||
+                    !isset($portfolio['performances_chunks']['performances_chunks']['all'][$data['range'][1]])
+                ) {
+                    $this->addResponse('Please provide correct range dates. Chunks for date not present.', 1);
+
+                    return false;
+                }
+
+                $datesKeys = array_keys($portfolio['performances_chunks']['performances_chunks']['all']);
+                $startDateKey = array_search($data['range'][0], $datesKeys);
+                $responseData['chunks'][$data['chunk_size']] = array_slice($portfolio['performances_chunks']['performances_chunks']['all'], $startDateKey, $daysDiff + 1);
+
+                if (count($responseData['chunks']) > 0) {
+                    $firstChunk = $this->helper->first($responseData['chunks'][$data['chunk_size']]);
+
+                    foreach ($responseData['chunks'][$data['chunk_size']] as $chunkDate => $chunk) {
+                        $responseData['chunks'][$data['chunk_size']][$chunkDate]['return_percent'] =
+                            numberFormatPrecision(($chunk['return_amount'] * 100 / $firstChunk['return_amount'] - 100), 2);
+                    }
+
+                    $this->addResponse('Ok', 0, $responseData);
+
+                    return $responseData;
+                }
+            } catch (\throwable $e) {
+                trace([$e]);
+                $this->addResponse('Exception: ' . $e->getMessage(), 1);
+
+                return false;
+            }
+        }
+
+        $this->addResponse('No data found', 1);
     }
 
     // protected function processPortfolioPerformances()
