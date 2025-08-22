@@ -93,13 +93,13 @@ class MfPortfolios
                         'notNull'       => false,
                     ]
                 ),
-                new Column(
-                    'strategy_ids',
-                    [
-                        'type'          => Column::TYPE_JSON,
-                        'notNull'       => false,
-                    ]
-                ),
+                // new Column(
+                //     'strategy_ids',
+                //     [
+                //         'type'          => Column::TYPE_JSON,
+                //         'notNull'       => false,
+                //     ]
+                // ),
                 new Column(
                     'allocation',
                     [

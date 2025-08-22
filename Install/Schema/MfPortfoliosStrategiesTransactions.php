@@ -5,7 +5,7 @@ namespace Apps\Fintech\Packages\Mf\Portfolios\Install\Schema;
 use Phalcon\Db\Column;
 use Phalcon\Db\Index;
 
-class MfPortfoliosStrategies
+class MfPortfoliosStrategiesTransactions
 {
     public function columns()
     {
@@ -100,19 +100,7 @@ class MfPortfoliosStrategies
                         'notNull'       => false,
                     ]
                 ),
-            ],
-            // 'indexes' => [
-            //     new Index(
-            //         'column_UNIQUE',
-            //         [
-            //             'name'
-            //         ],
-            //         'UNIQUE'
-            //     )
-            // ],
-            // 'options' => [
-            //     'TABLE_COLLATION' => 'utf8mb4_general_ci'
-            // ]
+            ]
         ];
     }
 

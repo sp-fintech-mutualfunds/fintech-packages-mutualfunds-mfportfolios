@@ -350,21 +350,11 @@ class MfPortfolios extends BasePackage
                     }
                 }
 
-                // if (isset($mfportfolios['timeline']['performance_chunks_id'])) {
-                //     $this->portfoliotimelinePackage->switchModel($this->portfoliotimelinePackage->performanceChunksModel);
-
-                //     $this->portfoliotimelinePackage->remove($mfportfolios['timeline']['performance_chunks_id']);
-                // }
-
                 $this->portfoliotimelinePackage->switchModel();
 
                 $this->portfoliotimelinePackage->remove($mfportfolios['timeline']['id']);
-
-                //Remove Timeline Opcache entry
-                // if ($this->opCache->checkCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline')) {
-                //     $this->opCache->removeCache($mfportfolios['timeline']['id'], 'mfportfoliostimeline');
-                // }
             }
+
             //Remove Transactions
             if (isset($mfportfolios['transactions']) && count($mfportfolios['transactions']) > 0) {
                 foreach ($mfportfolios['transactions'] as $transaction) {
@@ -378,11 +368,10 @@ class MfPortfolios extends BasePackage
                 }
             }
 
-
             if ($this->remove($mfportfolios['id'])) {
-                if (isset($mfportfolios['performances']['id'])) {
+                if (isset($mfportfolios['performances_chunks']['id'])) {
                     $this->switchModel(AppsFintechMfPortfoliosPerformancesChunks::class);
-                    $this->remove($mfportfolios['performances']['id']);
+                    $this->remove($mfportfolios['performances_chunks']['id']);
                     $this->switchModel();
                 }
 
@@ -419,15 +408,6 @@ class MfPortfolios extends BasePackage
             return false;
         }
 
-        // if (!isset($this->portfolio['performances'])) {
-        //     $portfolioperformances['portfolio_id'] = $this->portfolio['id'];
-        //     $portfolioperformances['performances'] = $this->helper->encode([]);
-        //     $this->setModelToUse(AppsFintechMfPortfoliosPerformancesChunks::class);
-        //     $this->ffStore = null;
-        //     $this->add($portfolioperformances);
-        //     $this->portfolio['performances'] = $this->packagesData->last;
-        // }
-
         //Increase memory_limit to 1G as the process takes a bit of memory to process the scheme's navs array.
         if ((int) ini_get('memory_limit') < 1024) {
             ini_set('memory_limit', '1024M');
@@ -440,28 +420,15 @@ class MfPortfolios extends BasePackage
 
         if ($this->portfolio['transactions'] && count($this->portfolio['transactions']) > 0) {
             $this->portfolio['transactions'] = msort(array: $this->portfolio['transactions'], key: 'date', preserveKey: true);
-            // $this->basepackages->utils->setMicroTimer('transaction start - ' . $timeline->timelineDateBeingProcessed, true);
-            // $this->basepackages->utils->setMicroTimer('transaction start', true);
+
             if (!$this->processTransactionsNumbers($force, $timeline)) {
                 return false;
             }
-            // $this->basepackages->utils->setMicroTimer('transaction end - ' . $timeline->timelineDateBeingProcessed, true);
-            // $this->basepackages->utils->setMicroTimer('transaction end', true);
-            // var_Dump($this->basepackages->utils->getMicroTimer());
-            // $this->basepackages->utils->resetMicroTimer();
-            // $this->processPortfolioPerformances();
 
-            // $this->basepackages->utils->setMicroTimer('investments start - ' . $timeline->timelineDateBeingProcessed, true);
-            // $this->basepackages->utils->setMicroTimer('investments start', true);
             if (!$this->processInvestmentNumbers($timeline)) {
                 return false;
             }
-            // $this->basepackages->utils->setMicroTimer('investments end - ' . $timeline->timelineDateBeingProcessed, true);
-            // $this->basepackages->utils->setMicroTimer('investments end', true);
-            // var_Dump($this->basepackages->utils->getMicroTimer());
-            // $this->basepackages->utils->resetMicroTimer();
-            // trace([$this->portfolio]);
-            // trace(['me']);
+
             if ($timeline) {
                 return $this->portfolio;
             } else {
@@ -529,12 +496,7 @@ class MfPortfolios extends BasePackage
 
     protected function processTransactionsNumbers($force = false, &$timeline = null)
     {
-        // $performanceCounter = 0;
-        // trace([$this->portfolio['transactions']]);
         foreach ($this->portfolio['transactions'] as $transactionId => &$transaction) {
-            // $this->portfolio['performances']['performances'][$performanceCounter] = [];
-            // $this->portfolio['performances']['performances'][$performanceCounter]['date'] = $transaction['date'];
-
             if ($timeline && $timeline->timelineDateBeingProcessed) {
                 if (!isset($this->parsedCarbon[$transaction['date']])) {
                     $this->parsedCarbon[$transaction['date']] = \Carbon\Carbon::parse($transaction['date']);
@@ -568,14 +530,6 @@ class MfPortfolios extends BasePackage
                 $this->investments[$transaction['scheme_id']]['total_investment'] =
                     $this->investments[$transaction['scheme_id']]['total_investment'] + $transaction['amount'];
 
-                // // if ($performanceCounter === 0) {
-                // //     $this->portfolio['performances']['performances'][$performanceCounter]['total_investment'] = (float) $transaction['amount'];
-                // // } else {
-                //     $this->portfolio['performances']['performances'][$performanceCounter]['total_investment'] =
-                //         (float) $this->portfolio['performances']['performances'][$performanceCounter - 1]['total_investment'] + $transaction['amount'];
-                // }
-
-            // $this->basepackages->utils->setMicroTimer('scheme start - ' . $timeline->timelineDateBeingProcessed, true);
                 if (!isset($this->parsedCarbon[$this->portfolio['start_date']])) {
                     $this->parsedCarbon[$this->portfolio['start_date']] = \Carbon\Carbon::parse($this->portfolio['start_date']);
                 }
@@ -587,16 +541,12 @@ class MfPortfolios extends BasePackage
                     $this->portfolio['start_date'] = $transaction['date'];
                 }
 
-                // trace([$this->schemes]);
                 if (!isset($this->schemes[$transaction['scheme_id']])) {
                     $this->schemes[$transaction['scheme_id']] = $this->schemesPackage->getSchemeFromAmfiCodeOrSchemeId($transaction, true);
                 }
-                // trace([$this->schemes[$transaction['scheme_id']]]);
+
                 $this->scheme = &$this->schemes[$transaction['scheme_id']];
-            // $this->basepackages->utils->setMicroTimer('scheme end - ' . $timeline->timelineDateBeingProcessed, true);
-            // var_Dump($this->basepackages->utils->getMicroTimer());
-            // $this->basepackages->utils->resetMicroTimer();
-            // $this->basepackages->utils->setMicroTimer('transaction start - ' . $timeline->timelineDateBeingProcessed, true);
+
                 if ($transaction['status'] === 'close' && $timeline) {
                     if (!isset($this->parsedCarbon[$timeline->timelineDateBeingProcessed])) {
                         $this->parsedCarbon[$timeline->timelineDateBeingProcessed] = \Carbon\Carbon::parse($timeline->timelineDateBeingProcessed);
@@ -613,7 +563,6 @@ class MfPortfolios extends BasePackage
 
                 $this->investments[$transaction['scheme_id']]['amc_id'] = $this->scheme['amc_id'];
                 $this->investments[$transaction['scheme_id']]['scheme_id'] = $this->scheme['id'];
-
                 $this->investments[$transaction['scheme_id']]['open_transactions'] = false;
 
                 if ($transaction['status'] === 'open') {
@@ -680,10 +629,6 @@ class MfPortfolios extends BasePackage
 
                             if ($transaction['available_amount'] < $soldAmount) {
                                 $transaction['available_amount'] = (float) numberFormatPrecision($transaction['amount'] - $soldAmount, 2);
-
-                                // if ($transaction['available_amount'] < 0) {
-                                //     $transaction['available_amount'] = abs($transaction['available_amount']);
-                                // }
                             } else {
                                 $transaction['available_amount'] = (float) numberFormatPrecision($transaction['amount'] - $soldAmount, 2);
                             }
@@ -699,12 +644,6 @@ class MfPortfolios extends BasePackage
                                 array_merge($this->investments[$transaction['scheme_id']]['xirrDatesArr'], $transactionXirrDatesArr);
                             $this->investments[$transaction['scheme_id']]['xirrAmountsArr'] =
                                 array_merge($this->investments[$transaction['scheme_id']]['xirrAmountsArr'], $transactionXirrAmountsArr);
-                            // array_push($this->investments[$transaction['scheme_id']]['xirrDatesArr'], $transaction['date']);
-                            // if ($transaction['available_amount'] < 0) {
-                            //     array_push($this->investments[$transaction['scheme_id']]['xirrAmountsArr'], (float) -($transaction['amount'] + abs($transaction['available_amount'])));
-                            // } else {
-                            //     array_push($this->investments[$transaction['scheme_id']]['xirrAmountsArr'], (float) -$transaction['available_amount']);
-                            // }
 
                             if (isset($this->investments[$transaction['scheme_id']]['sold_amount'])) {
                                 $this->investments[$transaction['scheme_id']]['sold_amount'] += (float) $soldAmount;
@@ -729,8 +668,6 @@ class MfPortfolios extends BasePackage
                             $this->investments[$transaction['scheme_id']]['xirrAmountsArr'] =
                                 array_merge($this->investments[$transaction['scheme_id']]['xirrAmountsArr'], $transactionXirrAmountsArr);
 
-                            // array_push($this->investments[$transaction['scheme_id']]['xirrDatesArr'], $transaction['date']);
-                            // array_push($this->investments[$transaction['scheme_id']]['xirrAmountsArr'], (float) -$transaction['amount']);
                             $transaction['available_amount'] = $transaction['amount'];
                             $transaction['units_sold'] = 0;
 
@@ -753,7 +690,7 @@ class MfPortfolios extends BasePackage
                                 $this->investments[$transaction['scheme_id']]['units'] = (float) $transaction['units_bought'] - $transaction['units_sold'];
                             }
                         }
-                        // trace([$transactionXirrAmountsArr, $transactionXirrDatesArr]);
+
                         $transaction['xirr'] =
                             numberFormatPrecision(
                                 (float) NonPeriodic::rate(
@@ -786,13 +723,9 @@ class MfPortfolios extends BasePackage
                         $this->investments[$transaction['scheme_id']]['units'] = (float) $transaction['units_bought'] - $transaction['units_sold'];
                     }
                 }
-
-                // $performanceCounter++;
             }
-            // trace([$this->investments]);
+
             if (!$timeline) {
-                // $this->transactionsPackage->setFFValidation(false);
-                // $this->transactionsPackage->update($transaction);
                 try {
                     $this->localContent->write('.ff/sp/apps_fintech_mf_transactions/data/' . $transaction['id'] . '.json', $this->helper->encode($transaction));
                 } catch (FilesystemException | UnableToWriteFile | \throwable $e) {
@@ -801,10 +734,6 @@ class MfPortfolios extends BasePackage
                     return false;
                 }
             }
-
-            // $this->basepackages->utils->setMicroTimer('transaction end - ' . $timeline->timelineDateBeingProcessed, true);
-            // var_Dump($this->basepackages->utils->getMicroTimer());
-            // $this->basepackages->utils->resetMicroTimer();
         }
 
         return true;
@@ -820,14 +749,10 @@ class MfPortfolios extends BasePackage
                     } else {
                         $this->investmentsPackage->remove($this->portfolio['investments'][$investmentAmficode]['id']);
                     }
-                // } else {
-                //     if ($portfolioInvestmentArr['status'] === 'close') {
-                //         unset($this->investments[$investmentAmficode]);
-                //     }
                 }
             }
         }
-        // trace([$this->investments]);
+
         if (count($this->investments) > 0) {
             $categoriesPackage = $this->usepackage(MfCategories::class);
 
@@ -842,7 +767,7 @@ class MfPortfolios extends BasePackage
             foreach ($this->investments as $schemeId => &$investment) {
                 if (isset($this->portfolio['investments'][$schemeId])) {
                     $portfolioInvestment = $this->portfolio['investments'][$schemeId];
-                    // trace([$investment]);
+
                     if (!$investment['open_transactions']) {
                         $portfolioInvestment['status'] = 'close';
                         $portfolioInvestment['amount'] = 0;
@@ -883,10 +808,6 @@ class MfPortfolios extends BasePackage
                     $portfolioInvestment['diff'] =
                         numberFormatPrecision(($portfolioInvestment['latest_value'] + $portfolioInvestment['sold_amount']) - $portfolioInvestment['amount'], 2);
 
-                    // array_push($investment['xirrDatesArr'], $investment['latest_nav_date']);
-                    // array_push($investment['xirrAmountsArr'], (float) $portfolioInvestment['latest_value']);
-
-                    // trace([$investment['xirrAmountsArr'], $investment['xirrDatesArr']]);
                     $portfolioInvestment['xirr'] =
                         numberFormatPrecision(
                             (float) NonPeriodic::rate(
@@ -899,7 +820,6 @@ class MfPortfolios extends BasePackage
                     $this->portfolioXirrAmountsArr = array_merge($this->portfolioXirrAmountsArr, $investment['xirrAmountsArr']);
 
                     if ($timeline) {
-                        // trace([$timeline->timelineDateBeingProcessed, $this->portfolio['transactions'], $this->investments, $portfolioInvestment]);
                         $this->portfolio['investments'][$schemeId] =
                             array_replace($this->portfolio['investments'][$schemeId], $portfolioInvestment);
 
@@ -920,7 +840,7 @@ class MfPortfolios extends BasePackage
                     $this->portfolio['return_amount'] += $portfolioInvestment['latest_value'];
                 }
             }
-            // trace([$this->portfolio]);
+
             //Running loop again to recalculate category percentage. We need to calculate the portfolio total in order to get percentage of categories.
             unset($investment);//Unset as we are using the same var $investment again.
             foreach ($this->investments as $schemeId => $investment) {
@@ -941,7 +861,6 @@ class MfPortfolios extends BasePackage
 
                     $scheme = &$this->schemes[$transaction['scheme_id']];
                 }
-                // $scheme = $this->schemesPackage->getSchemeById($investment['scheme_id']);
 
                 if (!isset($this->portfolio['allocation']['by_schemes'][$scheme['id']])) {
                     $this->portfolio['allocation']['by_schemes'][$scheme['id']] = [];
@@ -951,7 +870,6 @@ class MfPortfolios extends BasePackage
                 $schemeAllocation['scheme_id'] = $scheme['id'];
                 $schemeAllocation['scheme_name'] = $scheme['name'];
                 $schemeAllocation['invested_amount'] = $investment['total_investment'];
-                // trace([$investment['total_investment'], $this->portfolio['invested_amount']]);
                 $schemeAllocation['invested_percent'] = round(($investment['total_investment'] / $this->portfolio['invested_amount']) * 100, 2);
                 $schemeAllocation['return_amount'] = $investment['latest_value'];
                 if ($investment['latest_value'] == 0) {
@@ -1057,15 +975,9 @@ class MfPortfolios extends BasePackage
 
         $this->portfolio['total_value'] = $this->portfolio['return_amount'] + $this->portfolio['sold_amount'];
 
-        // if ($this->portfolio['sold_amount'] > 0) {
-        //     $investedAmount = $this->portfolio['invested_amount'] + abs($this->portfolio['invested_amount'] - $this->portfolio['sold_amount']);
-        // } else {
-        //     $investedAmount = $this->portfolio['invested_amount'];
-        // }
-
         $this->portfolio['profit_loss'] =
             numberFormatPrecision(($this->portfolio['return_amount'] + $this->portfolio['sold_amount']) - $this->portfolio['invested_amount'], 2);
-            // trace([$this->portfolio['profit_loss']]);
+
         if ($this->portfolio['profit_loss'] > 0) {
             $this->portfolio['status'] = 'positive';
         } else if ($this->portfolio['profit_loss'] < 0) {
@@ -1088,7 +1000,6 @@ class MfPortfolios extends BasePackage
         } else {
             $this->portfolio['xirr'] = 0;
         }
-        // trace([$this->portfolioXirrAmountsArr, $this->portfolioXirrDatesArr, $this->portfolio['xirr']]);
 
         if ($timeline && $timeline->timelineDateBeingProcessed) {
             $this->portfolio['timelineDate'] = $timeline->timelineDateBeingProcessed;
@@ -1135,8 +1046,6 @@ class MfPortfolios extends BasePackage
                     $responseData['chunks'][$data['chunk_size']] = $portfolio['performances_chunks']['performances_chunks'][$data['chunk_size']];
                 }
 
-                // $daysDiff = 0;
-
                 $start = (\Carbon\Carbon::parse($data['start_date']));
                 $end = (\Carbon\Carbon::parse($data['end_date']));
 
@@ -1153,7 +1062,6 @@ class MfPortfolios extends BasePackage
                     $recalculatedChunks = [];
 
                     foreach ($responseData['chunks'][$data['chunk_size']] as $chunkKey => $chunk) {
-                        trace([$chunk]);
                         if (!isset($recalculatedChunks[$chunk['date']])) {
                             $recalculatedChunks[$chunk['date']]['nav'] = $chunk['nav'];
                             $recalculatedChunks[$chunk['date']]['date'] = $chunk['date'];
@@ -1237,7 +1145,6 @@ class MfPortfolios extends BasePackage
                     return $responseData;
                 }
             } catch (\throwable $e) {
-                trace([$e]);
                 $this->addResponse('Exception: ' . $e->getMessage(), 1);
 
                 return false;
@@ -1246,130 +1153,4 @@ class MfPortfolios extends BasePackage
 
         $this->addResponse('No data found', 1);
     }
-
-    // protected function processPortfolioPerformances()
-    // {
-    //     $performances = [];
-
-    //     foreach ($this->portfolio['performances']['performances'] as $performance) {
-    //         $performances[$performance['date']] =
-    //             [
-    //                 'date'             => $performance['date'],
-    //                 'total_investment' => $performance['total_investment'],
-    //             ];
-    //     }
-
-    //     unset($this->portfolio['performances']['performances']);
-
-    //     $performances = $this->fillPerformancesDateGaps($performances);
-
-    //     $this->portfolio['performances']['performances_chunks'] = $this->createChunks($performances);
-
-    //     $this->switchModel(AppsFintechMfPortfoliosPerformancesChunks::class);
-
-    //     $this->update($this->portfolio['performances']);
-
-    //     $this->switchModel();
-    // }
-
-    // protected function fillPerformancesDateGaps($performances)
-    // {
-    //     $firstDate = \Carbon\Carbon::parse($this->helper->firstKey($performances));
-    //     $lastDate = \Carbon\Carbon::today();
-
-    //     $numberOfDays = $firstDate->diffInDays($lastDate) + 1;//Include last day in calculation
-
-    //     if ($numberOfDays != count($performances)) {
-    //         $performances = array_values($performances);
-
-    //         $totalInvestmentArr = [];
-
-    //         foreach ($performances as $performanceKey => $performance) {
-    //             $totalInvestmentArr[$performance['date']] = $performance;
-
-    //             $differenceDays = 0;
-
-    //             if (isset($performances[$performanceKey + 1])) {
-    //                 $currentDate = \Carbon\Carbon::parse($performance['date']);
-    //                 $nextDate = \Carbon\Carbon::parse($performances[$performanceKey + 1]['date']);
-    //                 $differenceDays = $currentDate->diffInDays($nextDate);
-    //             } else {
-    //                 $currentDate = \Carbon\Carbon::parse($performance['date']);
-    //                 $nextDate = \Carbon\Carbon::today();
-    //                 $differenceDays = $currentDate->diffInDays($nextDate) + 1;
-    //             }
-
-    //             if ($differenceDays > 1) {
-    //                 for ($days = 1; $days < $differenceDays; $days++) {
-    //                     $missingDay = $currentDate->addDay(1)->toDateString();
-
-    //                     if (!isset($totalInvestmentArr[$missingDay])) {
-    //                         $performance['date'] = $missingDay;
-
-    //                         $totalInvestmentArr[$performance['date']] = $performance;
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         if ($numberOfDays != count($totalInvestmentArr)) {
-    //             throw new \Exception('Cannot process performance missing dates correctly.');
-    //         }
-
-    //         return $totalInvestmentArr;
-    //     }
-
-    //     return $performances;
-    // }
-
-    // protected function createChunks($performances)
-    // {
-    //     $chunks = [];
-
-    //     $datesKeys = array_keys($performances);
-
-    //     foreach (['week', 'month', 'threeMonth', 'sixMonth', 'year', 'threeYear', 'fiveYear', 'tenYear'] as $time) {
-    //         $latestDate = \Carbon\Carbon::parse($this->helper->lastKey($performances));
-    //         $timeDate = null;
-
-    //         if ($time === 'week') {
-    //             $timeDate = $latestDate->subDay(6)->toDateString();
-    //         } else if ($time === 'month') {
-    //             $timeDate = $latestDate->subMonth()->toDateString();
-    //         } else if ($time === 'threeMonth') {
-    //             $timeDate = $latestDate->subMonth(3)->toDateString();
-    //         } else if ($time === 'sixMonth') {
-    //             $timeDate = $latestDate->subMonth(6)->toDateString();
-    //         } else if ($time === 'year') {
-    //             $timeDate = $latestDate->subYear()->toDateString();
-    //         } else if ($time === 'threeYear') {
-    //             $timeDate = $latestDate->subYear(3)->toDateString();
-    //         } else if ($time === 'fiveYear') {
-    //             $timeDate = $latestDate->subYear(5)->toDateString();
-    //         } else if ($time === 'tenYear') {
-    //             $timeDate = $latestDate->subYear(10)->toDateString();
-    //         }
-
-    //         if (isset($performances[$timeDate])) {
-    //             $timeDateKey = array_search($timeDate, $datesKeys);
-    //             $timeDateChunks = array_slice($performances, $timeDateKey);
-
-    //             if (count($timeDateChunks) > 0) {
-    //                 $chunks[$time] = [];
-
-    //                 foreach ($timeDateChunks as $timeDateChunkDate => $timeDateChunk) {
-    //                     $chunks[$time][$timeDateChunkDate] = [];
-    //                     $chunks[$time][$timeDateChunkDate]['date'] = $timeDateChunk['date'];
-    //                     $chunks[$time][$timeDateChunkDate]['total_investment'] = $timeDateChunk['total_investment'];
-    //                     // $chunks[$time][$timeDateChunkDate]['diff'] =
-    //                     //     numberFormatPrecision($timeDateChunk['nav'] - $this->helper->first($timeDateChunks)['nav'], 4);
-    //                     // $chunks[$time][$timeDateChunkDate]['diff_percent'] =
-    //                     //     numberFormatPrecision(($timeDateChunk['nav'] * 100 / $this->helper->first($timeDateChunks)['nav'] - 100), 2);
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     return $chunks;
-    // }
 }

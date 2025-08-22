@@ -34,7 +34,7 @@ class AppsFintechMfPortfolios extends BaseModel
 
     public $xirr;
 
-    public $strategy_ids;
+    // public $strategy_ids;
 
     public $allocation;
 
@@ -81,14 +81,14 @@ class AppsFintechMfPortfolios extends BaseModel
             ]
         );
 
-        $this->modelRelations['strategies']['relationObj'] = $this->hasMany(
-            'id',
-            AppsFintechMfPortfoliosStrategies::class,
-            'portfolio_id',
-            [
-                'alias'         => 'strategies'
-            ]
-        );
+        // $this->modelRelations['strategies_transactions']['relationObj'] = $this->hasMany(
+        //     'id',
+        //     AppsFintechMfPortfoliosStrategies::class,
+        //     'portfolio_id',
+        //     [
+        //         'alias'         => 'strategies_transactions'
+        //     ]
+        // );
 
         $this->modelRelations['performances_chunks']['relationObj'] = $this->hasOne(
             'id',

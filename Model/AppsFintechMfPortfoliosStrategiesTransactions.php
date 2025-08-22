@@ -4,7 +4,7 @@ namespace Apps\Fintech\Packages\Mf\Portfolios\Model;
 
 use System\Base\BaseModel;
 
-class AppsFintechMfPortfoliosStrategies extends BaseModel
+class AppsFintechMfPortfoliosStrategiesTransactions extends BaseModel
 {
     public $id;
 
@@ -29,5 +29,4 @@ class AppsFintechMfPortfoliosStrategies extends BaseModel
     public $amount;
 
     public $details;
-
 }
